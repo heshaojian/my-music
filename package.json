@@ -11,6 +11,12 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx src --fix",
+    "lint:check": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "jest",
+    "test:coverage": "jest --coverage",
+    "build:android:debug": "node scripts/build-android-debug.cjs",
+    "build:ios:simulator": "xcodebuild -workspace ios/MusicFree.xcworkspace -scheme MusicFreeNew -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build",
     "start": "react-native start",
     "clean": "cd ./android && ./gradlew clean",
     "test": "jest",
@@ -96,9 +102,11 @@
     "@react-native/eslint-config": "0.76.5",
     "@react-native/metro-config": "0.76.5",
     "@react-native/typescript-config": "0.76.5",
+    "@testing-library/react-native": "^13.3.3",
     "@types/color": "^3.0.6",
     "@types/crypto-js": "^4.2.2",
     "@types/he": "^1.2.3",
+    "@types/jest": "^29.5.14",
     "@types/lodash.shuffle": "^4.2.9",
     "@types/object-path": "^0.11.4",
     "@types/path-browserify": "^1.0.2",
@@ -130,6 +138,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/maotoumao/MusicFree.git"
+    "url": "git+https://github.com/heshaojian/FreeMusic.git"
   }
 }

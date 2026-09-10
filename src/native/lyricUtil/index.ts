@@ -1,6 +1,6 @@
 import Config from "@/core/appConfig";
 import Toast from "@/utils/toast";
-import { NativeModule, NativeModules } from "react-native";
+import { NativeModules } from "react-native";
 import { errorLog } from "@/utils/log.ts";
 
 export enum NativeTextAlignment {
@@ -13,7 +13,7 @@ export enum NativeTextAlignment {
 }
 
 // 状态栏歌词的工具
-interface ILyricUtil extends NativeModule {
+interface ILyricUtil {
     /** 显示状态栏歌词 */
     showStatusBarLyric: (
         initLyric?: string,
@@ -44,16 +44,30 @@ interface ILyricUtil extends NativeModule {
     requestSystemAlertPermission: () => Promise<boolean>;
 }
 
-const LyricUtil: ILyricUtil = NativeModules.LyricUtil;
+const nativeLyricUtil = NativeModules.LyricUtil as ILyricUtil | undefined;
 
-const originalShowStatusBarLyric = LyricUtil.showStatusBarLyric;
+const unsupportedLyricUtil: ILyricUtil = {
+    showStatusBarLyric: async () => undefined,
+    hideStatusBarLyric: async () => undefined,
+    setStatusBarLyricText: async () => undefined,
+    setStatusBarLyricTop: async () => undefined,
+    setStatusBarLyricLeft: async () => undefined,
+    setStatusBarLyricWidth: async () => undefined,
+    setStatusBarLyricFontSize: async () => undefined,
+    setStatusBarLyricAlign: async () => undefined,
+    setStatusBarColors: async () => undefined,
+    checkSystemAlertPermission: async () => false,
+    requestSystemAlertPermission: async () => false,
+};
+
+const baseLyricUtil = nativeLyricUtil ?? unsupportedLyricUtil;
 
 const showStatusBarLyric: ILyricUtil["showStatusBarLyric"] = async (
     initLyric,
     config,
 ) => {
     try {
-        await originalShowStatusBarLyric(initLyric, config);
+        await baseLyricUtil.showStatusBarLyric(initLyric, config);
     } catch (e) {
         errorLog("状态栏歌词开启失败", e);
         Toast.warn("状态栏歌词开启失败，请到手机系统设置打开悬浮窗权限");
@@ -61,6 +75,9 @@ const showStatusBarLyric: ILyricUtil["showStatusBarLyric"] = async (
     }
 };
 
-LyricUtil.showStatusBarLyric = showStatusBarLyric;
+const LyricUtil: ILyricUtil = {
+    ...baseLyricUtil,
+    showStatusBarLyric,
+};
 
 export default LyricUtil;

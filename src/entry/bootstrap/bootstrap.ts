@@ -26,6 +26,7 @@ import RNTrackPlayer, { AppKilledPlaybackBehavior, Capability } from "react-nati
 import i18n from "@/core/i18n";
 import bootstrapAtom from "./bootstrap.atom";
 import { getDefaultStore } from "jotai";
+import { ensureBootstrapPermissions } from "./permissions";
 
 
 // 依赖管理
@@ -47,30 +48,16 @@ async function bootstrapImpl() {
         .catch(console.warn); // it's good to explicitly catch and inspect any error
     const logger = perfLogger();
     // 1. 检查权限
-    if (Platform.OS === "android" && Platform.Version >= 30) {
-        const hasPermission = await NativeUtils.checkStoragePermission();
-        if (
-            !hasPermission &&
-            !PersistStatus.get("app.skipBootstrapStorageDialog")
-        ) {
-            showDialog("CheckStorage");
-        }
-    } else {
-        const [readStoragePermission, writeStoragePermission] =
-            await Promise.all([
-                check(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE),
-                check(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE),
-            ]);
-        if (
-            !(
-                readStoragePermission === "granted" &&
-                writeStoragePermission === "granted"
-            )
-        ) {
-            await request(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
-            await request(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE);
-        }
-    }
+    await ensureBootstrapPermissions(Platform.OS, Number(Platform.Version), {
+        checkAllFilesAccess: NativeUtils.checkStoragePermission,
+        shouldSkipAllFilesDialog: () =>
+            Boolean(PersistStatus.get("app.skipBootstrapStorageDialog")),
+        showAllFilesDialog: () => showDialog("CheckStorage"),
+        checkLegacyPermission: check,
+        requestLegacyPermission: request,
+        legacyReadPermission: PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
+        legacyWritePermission: PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE,
+    });
     logger.mark("权限检查完成");
 
     // 2. 数据初始化

@@ -24,6 +24,17 @@ interface IMp3Util {
     getMediaTag: (filePath: string) => Promise<IWritableMeta>;
 }
 
-const Mp3Util = NativeModules.Mp3Util;
+const unavailable = async (): Promise<never> => {
+    throw new Error("Media metadata is not available on this platform");
+};
 
-export default Mp3Util as IMp3Util;
+const Mp3Util: IMp3Util = NativeModules.Mp3Util ?? {
+    getBasicMeta: unavailable,
+    getMediaMeta: unavailable,
+    getMediaCoverImg: unavailable,
+    getLyric: unavailable,
+    setMediaTag: unavailable,
+    getMediaTag: unavailable,
+};
+
+export default Mp3Util;
