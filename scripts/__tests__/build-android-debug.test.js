@@ -1,4 +1,7 @@
-const { resolveAndroidToolchain } = require("../build-android-debug.cjs");
+const {
+    ensureAutolinkingCacheMatchesRoot,
+    resolveAndroidToolchain,
+} = require("../build-android-debug.cjs");
 
 const allPathsExist = Object.freeze({ existsSync: () => true });
 
@@ -56,5 +59,36 @@ describe("Android build toolchain", () => {
                 { existsSync: () => false },
             ),
         ).toThrow("JDK 17 was not found at /missing/jdk-17/bin/java");
+    });
+});
+
+describe("Android autolinking cache", () => {
+    it("removes generated autolinking data after the repository moves", () => {
+        const removeCache = jest.fn();
+
+        expect(
+            ensureAutolinkingCacheMatchesRoot("/current/repo", {
+                existsSync: () => true,
+                readFileSync: () => JSON.stringify({ root: "/previous/repo" }),
+                rmSync: removeCache,
+            }),
+        ).toBe(true);
+        expect(removeCache).toHaveBeenCalledWith(
+            "/current/repo/android/build/generated/autolinking",
+            { force: true, recursive: true },
+        );
+    });
+
+    it("keeps generated autolinking data for the current repository", () => {
+        const removeCache = jest.fn();
+
+        expect(
+            ensureAutolinkingCacheMatchesRoot("/current/repo", {
+                existsSync: () => true,
+                readFileSync: () => JSON.stringify({ root: "/current/repo" }),
+                rmSync: removeCache,
+            }),
+        ).toBe(false);
+        expect(removeCache).not.toHaveBeenCalled();
     });
 });

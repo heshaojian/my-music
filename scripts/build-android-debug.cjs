@@ -48,9 +48,40 @@ function assertExists(target, label, existsSync = fs.existsSync) {
     }
 }
 
+function ensureAutolinkingCacheMatchesRoot(repositoryRoot, dependencies = fs) {
+    const cacheDirectory = path.join(
+        repositoryRoot,
+        "android",
+        "build",
+        "generated",
+        "autolinking",
+    );
+    const configPath = path.join(cacheDirectory, "autolinking.json");
+
+    if (!dependencies.existsSync(configPath)) {
+        return false;
+    }
+
+    let cachedRoot;
+    try {
+        cachedRoot = JSON.parse(dependencies.readFileSync(configPath, "utf8")).root;
+    } catch {
+        cachedRoot = undefined;
+    }
+
+    if (path.resolve(cachedRoot || "") === path.resolve(repositoryRoot)) {
+        return false;
+    }
+
+    dependencies.rmSync(cacheDirectory, { force: true, recursive: true });
+    return true;
+}
+
 function run() {
     const { javaHome, androidHome } = resolveAndroidToolchain();
-    const androidDirectory = path.resolve(__dirname, "..", "android");
+    const repositoryRoot = path.resolve(__dirname, "..");
+    const androidDirectory = path.join(repositoryRoot, "android");
+    ensureAutolinkingCacheMatchesRoot(repositoryRoot);
     const result = spawnSync(path.join(androidDirectory, "gradlew"), ["assembleDebug"], {
         cwd: androidDirectory,
         env: {
@@ -72,4 +103,4 @@ if (require.main === module) {
     run();
 }
 
-module.exports = { resolveAndroidToolchain };
+module.exports = { ensureAutolinkingCacheMatchesRoot, resolveAndroidToolchain };
