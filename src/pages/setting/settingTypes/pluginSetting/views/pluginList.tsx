@@ -38,6 +38,13 @@ export default function PluginList() {
 
     const menuOptions: IOption[] = [
         {
+            icon: "magnifying-glass",
+            title: t("pluginLibrary.title"),
+            onPress() {
+                navigator.navigate("/pluginsetting/library");
+            },
+        },
+        {
             icon: "bookmark-square",
             title: t("pluginSetting.menu.subscriptionSetting"),
             async onPress() {

@@ -11,6 +11,11 @@ interface IButtonProps {
     children: string;
     fontColor?: keyof CustomizedColors;
     onPress?: () => void;
+    disabled?: boolean;
+    accessibilityState?: {
+        busy?: boolean;
+        disabled?: boolean;
+    };
 }
 export default function (props: IButtonProps) {
     const { children, onPress, fontColor, hitSlop, withHorizontalPadding } =

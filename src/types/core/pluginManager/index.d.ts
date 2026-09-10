@@ -18,6 +18,12 @@ export interface IInstallPluginResult {
     pluginUrl?: string;
 }
 
+export interface IInstalledPluginSnapshot {
+    name: string;
+    version?: string;
+    srcUrl?: string;
+}
+
 /**
  * 插件管理器接口
  */
@@ -101,6 +107,9 @@ export interface IPluginManager {
      * @returns 已启用的插件实例数组
      */
     getEnabledPlugins(): Plugin[];
+
+    /** Return copied metadata for every installed plugin, including disabled ones. */
+    getInstalledPlugins(): IInstalledPluginSnapshot[];
 
     /**
      * 获取按顺序排序的所有插件
@@ -193,4 +202,3 @@ export interface IPluginManager {
      */
     getAlternativePlugin(plugin: Plugin): Plugin | null;
 }
-

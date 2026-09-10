@@ -1,10 +1,10 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import { StyleProp, ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface IHorizontalSafeAreaViewProps {
     mode?: "margin" | "padding";
-    children: JSX.Element | JSX.Element[];
+    children: ReactNode;
     style?: StyleProp<ViewStyle>;
 }
 export default function HorizontalSafeAreaView(

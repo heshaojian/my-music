@@ -193,6 +193,21 @@ export interface ILanguageData {
     "pluginSetting.menu.installPluginDialogPlaceholder": string; // 插件安装对话框占位符
     "pluginSetting.menu.pluginInstallFailedDialogTitle": string; // 插件安装失败对话框标题
     "pluginSetting.menu.pluginUpdateFailedDialogTitle": string; // 插件更新失败对话框标题
+    "pluginLibrary.title": string;
+    "pluginLibrary.search": string;
+    "pluginLibrary.cachedNotice": string;
+    "pluginLibrary.loadError": string;
+    "pluginLibrary.retry": string;
+    "pluginLibrary.empty": string;
+    "pluginLibrary.noResults": string;
+    "pluginLibrary.status.available": string;
+    "pluginLibrary.status.installed": string;
+    "pluginLibrary.status.update": string;
+    "pluginLibrary.action.install": string;
+    "pluginLibrary.action.update": string;
+    "pluginLibrary.trust.title": string;
+    "pluginLibrary.trust.content": string;
+    "pluginLibrary.trust.confirm": string;
     "pluginSetting.fabOptions.installFromLocal": string; // 从本地安装
     "pluginSetting.fabOptions.installFromNetwork": string; // 从网络安装
     "pluginSetting.fabOptions.updateAllPlugins": string; // 更新所有插件

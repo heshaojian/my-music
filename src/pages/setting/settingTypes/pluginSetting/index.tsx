@@ -4,10 +4,15 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import PluginList from "./views/pluginList";
 import PluginSort from "./views/pluginSort";
 import PluginSubscribe from "./views/pluginSubscribe";
+import PluginLibrary from "./views/pluginLibrary";
 
 const Stack = createNativeStackNavigator<any>();
 
 const routes = [
+    {
+        path: "/pluginsetting/library",
+        component: PluginLibrary,
+    },
     {
         path: "/pluginsetting/list",
         component: PluginList,
@@ -25,7 +30,7 @@ const routes = [
 export default function PluginSetting() {
     return (
         <Stack.Navigator
-            initialRouteName={routes[0].path}
+            initialRouteName="/pluginsetting/list"
             screenOptions={{
                 headerShown: false,
                 animation: "slide_from_right",

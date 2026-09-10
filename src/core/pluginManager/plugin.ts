@@ -22,14 +22,17 @@ import { produce } from "immer";
 import { nanoid } from "nanoid";
 import objectPath from "object-path";
 import qs from "qs";
+import { Platform } from "react-native";
 import { default as DeviceInfo, default as deviceInfoModule } from "react-native-device-info";
 import RNFS, { exists, readFile, stat, writeFile } from "react-native-fs";
 import { URL } from "react-native-url-polyfill";
 import * as webdav from "webdav";
+import i18n from "@/core/i18n";
 import { devLog, errorLog, trace } from "../../utils/log";
 import Network from "../../utils/network";
 import MediaCache from "../mediaCache";
 import _internalPluginMeta from "./meta";
+import { createPluginRuntimeEnvironment } from "./runtimeEnvironment";
 import { IPluginManager } from "@/types/core/pluginManager";
 
 
@@ -911,25 +914,13 @@ export class Plugin {
         const _module: any = { exports: {} };
         try {
             if (typeof funcCode === "string") {
-                // 插件的环境变量
-                const env = {
-                    getUserVariables: () => {
-                        return (
-                            _internalPluginMeta.getUserVariables(this.name)
-                        );
-                    },
-                    get userVariables() {
-                        return this.getUserVariables() ?? {};
-                    },
+                const runtime = createPluginRuntimeEnvironment({
+                    platform: Platform.OS,
+                    locale: i18n.getLanguage().locale,
                     appVersion,
-                    os: "android",
-                    lang: "zh-CN",
-                };
-                const _process = {
-                    platform: "android",
-                    version: appVersion,
-                    env,
-                };
+                    getUserVariables: () =>
+                        _internalPluginMeta.getUserVariables(this.name),
+                });
 
                 // eslint-disable-next-line no-new-func
                 _instance = Function(`
@@ -943,9 +934,9 @@ export class Plugin {
                     _module,
                     _module.exports,
                     _console,
-                    env,
+                    runtime.env,
                     URL,
-                    _process
+                    runtime.process
                 );
                 if (_module.exports.default) {
                     _instance = _module.exports
@@ -1117,4 +1108,3 @@ const localFilePluginDefine: IPlugin.IPluginDefine = {
 export const localFilePlugin = new Plugin(function () {
     return localFilePluginDefine;
 }, "internal-plugin://local-file-plugin");
-

@@ -68,4 +68,15 @@ describe("i18n language defaults", () => {
         expect(i18n.getLanguage().locale).toBe("en-US");
         expect(set).toHaveBeenCalledWith("app.language", "en-US");
     });
+
+    it("exposes supported languages and translates interpolation arguments", () => {
+        const { i18n } = loadI18n(null);
+
+        expect(i18n.setup()).toBeUndefined();
+        expect(i18n.getSupportedLanguages().map((language: { locale: string }) => language.locale))
+            .toEqual(["zh-CN", "zh-TW", "en-US"]);
+        expect(i18n.t("home.songCount", { count: 3 })).toBe("3 songs");
+        expect(i18n.t("home.songCount", {})).toBe(" songs");
+        expect(i18n.t("common.search")).toBe("Search");
+    });
 });

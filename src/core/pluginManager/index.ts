@@ -483,6 +483,14 @@ class PluginManager implements IPluginManager, IInjectable {
         );
     }
 
+    getInstalledPlugins() {
+        return this.getPlugins().map(plugin => ({
+            name: plugin.name,
+            version: plugin.instance.version,
+            srcUrl: plugin.instance.srcUrl,
+        }));
+    }
+
     /**
      * 获取按顺序排序的所有插件
      * @returns 按定义顺序排序的插件实例数组
