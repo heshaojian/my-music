@@ -21,12 +21,12 @@ import PersistStatus from "@/utils/persistStatus";
 import Toast from "@/utils/toast";
 import * as SplashScreen from "expo-splash-screen";
 import {  Linking, Platform } from "react-native";
-import { PERMISSIONS, check, request } from "react-native-permissions";
 import RNTrackPlayer, { AppKilledPlaybackBehavior, Capability } from "react-native-track-player";
 import i18n from "@/core/i18n";
 import bootstrapAtom from "./bootstrap.atom";
 import { getDefaultStore } from "jotai";
 import { ensureBootstrapPermissions } from "./permissions";
+import { getAndroidPermissionApi } from "./permissionApi";
 
 
 // 依赖管理
@@ -48,15 +48,18 @@ async function bootstrapImpl() {
         .catch(console.warn); // it's good to explicitly catch and inspect any error
     const logger = perfLogger();
     // 1. 检查权限
+    const androidPermissionApi = getAndroidPermissionApi();
     await ensureBootstrapPermissions(Platform.OS, Number(Platform.Version), {
         checkAllFilesAccess: NativeUtils.checkStoragePermission,
         shouldSkipAllFilesDialog: () =>
             Boolean(PersistStatus.get("app.skipBootstrapStorageDialog")),
         showAllFilesDialog: () => showDialog("CheckStorage"),
-        checkLegacyPermission: check,
-        requestLegacyPermission: request,
-        legacyReadPermission: PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
-        legacyWritePermission: PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE,
+        checkLegacyPermission: permission =>
+            androidPermissionApi?.check(permission) ?? Promise.resolve("unavailable"),
+        requestLegacyPermission: permission =>
+            androidPermissionApi?.request(permission) ?? Promise.resolve("unavailable"),
+        legacyReadPermission: androidPermissionApi?.readExternalStorage,
+        legacyWritePermission: androidPermissionApi?.writeExternalStorage,
     });
     logger.mark("权限检查完成");
 

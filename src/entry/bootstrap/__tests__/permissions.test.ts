@@ -38,3 +38,53 @@ describe("ensureBootstrapPermissions", () => {
         expect(dependencies.requestLegacyPermission).toHaveBeenCalledTimes(2);
     });
 });
+
+describe("getAndroidPermissionApi", () => {
+    afterEach(() => {
+        jest.resetModules();
+        jest.dontMock("react-native");
+        jest.dontMock("react-native-permissions");
+    });
+
+    it("does not load the native permissions package on iOS", () => {
+        jest.resetModules();
+        jest.doMock("react-native", () => ({
+            Platform: { OS: "ios" },
+        }));
+        jest.doMock("react-native-permissions", () => {
+            throw new Error("react-native-permissions must not initialize on iOS");
+        });
+
+        const { getAndroidPermissionApi } = require("@/entry/bootstrap/permissionApi");
+
+        expect(getAndroidPermissionApi()).toBeUndefined();
+    });
+
+    it("loads Android permission functions only on Android", () => {
+        const check = jest.fn();
+        const request = jest.fn();
+        jest.resetModules();
+        jest.doMock("react-native", () => ({
+            Platform: { OS: "android" },
+        }));
+        jest.doMock("react-native-permissions", () => ({
+            check,
+            request,
+            PERMISSIONS: {
+                ANDROID: {
+                    READ_EXTERNAL_STORAGE: "android.permission.READ_EXTERNAL_STORAGE",
+                    WRITE_EXTERNAL_STORAGE: "android.permission.WRITE_EXTERNAL_STORAGE",
+                },
+            },
+        }));
+
+        const { getAndroidPermissionApi } = require("@/entry/bootstrap/permissionApi");
+
+        expect(getAndroidPermissionApi()).toEqual({
+            check,
+            request,
+            readExternalStorage: "android.permission.READ_EXTERNAL_STORAGE",
+            writeExternalStorage: "android.permission.WRITE_EXTERNAL_STORAGE",
+        });
+    });
+});

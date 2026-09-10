@@ -1,6 +1,6 @@
 import Config from "@/core/appConfig";
 import Toast from "@/utils/toast";
-import { NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 import { errorLog } from "@/utils/log.ts";
 
 export enum NativeTextAlignment {
@@ -44,7 +44,10 @@ interface ILyricUtil {
     requestSystemAlertPermission: () => Promise<boolean>;
 }
 
-const nativeLyricUtil = NativeModules.LyricUtil as ILyricUtil | undefined;
+const nativeLyricUtil =
+    Platform.OS === "android"
+        ? (NativeModules.LyricUtil as ILyricUtil | undefined)
+        : undefined;
 
 const unsupportedLyricUtil: ILyricUtil = {
     showStatusBarLyric: async () => undefined,

@@ -1,4 +1,4 @@
-import { NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 export interface IBasicMeta {
     album?: string;
@@ -28,7 +28,12 @@ const unavailable = async (): Promise<never> => {
     throw new Error("Media metadata is not available on this platform");
 };
 
-const Mp3Util: IMp3Util = NativeModules.Mp3Util ?? {
+const nativeMp3Util =
+    Platform.OS === "android"
+        ? (NativeModules.Mp3Util as IMp3Util | undefined)
+        : undefined;
+
+const Mp3Util: IMp3Util = nativeMp3Util ?? {
     getBasicMeta: unavailable,
     getMediaMeta: unavailable,
     getMediaCoverImg: unavailable,

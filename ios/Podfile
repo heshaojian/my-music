@@ -1,4 +1,8 @@
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
+
+# MusicFree still includes legacy native modules that are not safe under the
+# bridgeless runtime. Keep iOS aligned with Android until those adapters migrate.
+ENV['RCT_NEW_ARCH_ENABLED'] = '0'
 # Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(

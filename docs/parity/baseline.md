@@ -38,8 +38,8 @@ The repository declares Node.js `>=18` but does not pin a tested Node, Java, Rub
 | --- | --- | --- | --- |
 | TypeScript | `npm run typecheck` | **Passed**, exit 0 | No TypeScript diagnostics in the current Phase 0 shared tree. |
 | ESLint, read-only | `npm run lint:check` | **Passed with warnings**, exit 0 | 108 inherited warnings and 0 errors. Generated coverage output is excluded. |
-| Jest unit tests | `npm run test:unit -- --runInBand` | **Passed**, exit 0 | 5 suites, 14 tests, 0 snapshots. These are new Phase 0 tests, not upstream tests. |
-| Jest coverage | `npm run test:coverage -- --runInBand` | **Passed**, exit 0 | The Phase 0 scope reports 80% statements/lines, 88.46% functions, and 65.21% branches. Application modules changed in this phase report 100% statements/lines/functions; the build launcher is exercised at its configuration boundary. This is not repository-wide coverage. |
+| Jest unit tests | `npm run test:unit -- --runInBand` | **Passed**, exit 0 | 5 suites, 18 tests, 0 snapshots. These are new Phase 0 tests, not upstream tests. |
+| Jest coverage | `npm run test:coverage -- --runInBand` | **Passed**, exit 0 | The Phase 0 scope reports 81.25% statements/lines, 88.88% functions, and 68.51% branches. Application native adapters and permission boundaries changed in this phase report 100% statements/lines/functions; the build launcher is exercised at its configuration boundary. This is not repository-wide coverage. |
 | React Native configuration | `npx react-native config` | **Passed**, exit 0 | Configuration generation completed and discovered the native packages. |
 
 ### Upstream automated-test baseline
@@ -114,13 +114,15 @@ ios/Pods/Target Support Files/Pods-MusicFree/Pods-MusicFree.debug.xcconfig
 
 Dependent CocoaPods input/output file lists were also missing. This was a dependency-integration failure before application compilation.
 
-After Pod installation, `xcodebuild -list -workspace ios/MusicFree.xcworkspace` succeeded and exposed `MusicFreeNew` plus the dependency schemes. A clean unsigned generic-simulator workspace build entered compilation across 119 targets without reproducing the missing-xcconfig failure, but it was manually interrupted before completion; it is **not** a successful simulator-build result.
+After Pod installation, `xcodebuild -list -workspace ios/MusicFree.xcworkspace` succeeded and exposed `MusicFreeNew` plus the dependency schemes. A Debug simulator build and launch now succeed. The application reaches its home screen and completes storage, configuration, plugin, player, playlist, lyric, local-music, theme, and language initialization without a fatal error.
 
 ### Signed physical-device build and install
 
 A Debug workspace build for a connected personal iPhone completed successfully using a temporary command-line developer-team override. A standalone Release build also completed successfully and was installed over the Debug build. The personal team identifier was not written into the Xcode project.
 
-The first tap exposed a native launch crash before React Native rendered. The device crash report showed Expo Splash Screen loading its required `SplashScreen.storyboard`, while the app packaged only `LaunchScreen.storyboard`. The missing resource was added with a regression test, a new signed Release build succeeded, both compiled storyboards were verified inside the application bundle, and the corrected app was installed. Automated relaunch remained blocked by the phone's lock state, so UI and playback still require unlocked-device verification.
+The first tap exposed a native launch crash before React Native rendered. The device crash report showed Expo Splash Screen loading its required `SplashScreen.storyboard`, while the app packaged only `LaunchScreen.storyboard`. The missing resource was added with a regression test.
+
+The next device launch reached React Native but crashed while the bridgeless runtime resolved legacy native modules. iOS now uses the stable bridge, matching Android, and shared adapters no longer access Android-only native modules on iOS. Simulator validation then revealed that a top-level permissions import initialized an unconfigured iOS native package; permissions loading is now Android-only. The signed Release build was rebuilt and installed after these startup fixes. Physical UI and playback still require a final unlocked-device tap.
 
 ## Available Apple simulators
 
@@ -130,7 +132,7 @@ The following iOS 26.2 simulators were available at capture time:
 - Shut down: iPhone 17 Pro Max, iPhone Air, iPhone 17, iPhone 16e, Aiyifan iPhone 14 Pro Max
 - Shut down iPads: iPad Pro 13-inch (M5), iPad Pro 11-inch (M5), iPad mini (A17 Pro), iPad (A16), iPad Air 13-inch (M3), iPad Air 11-inch (M3)
 
-A physical iPhone build and installation were completed as described above, but no runtime feature evidence was collected because launch was blocked by the device lock state. Simulator availability proves only that UI and ordinary lifecycle testing can begin after the iOS build succeeds; it cannot verify background audio, route changes, interruption handling, Lock Screen controls, or file-provider behavior.
+A physical iPhone build and installation were completed as described above. Simulator runtime evidence confirms ordinary startup and home-screen rendering, but it cannot verify background audio, route changes, interruption handling, Lock Screen controls, or file-provider behavior. Those remain physical-device checks.
 
 ## Known source-level iOS blockers
 

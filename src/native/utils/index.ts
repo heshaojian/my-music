@@ -7,7 +7,10 @@ interface INativeUtils {
     getWindowDimensions: () => { width: number, height: number }; // Fix bug: https://github.com/facebook/react-native/issues/47080
 }
 
-const nativeUtils = NativeModules.NativeUtils as INativeUtils | undefined;
+const nativeUtils =
+    Platform.OS === "android"
+        ? (NativeModules.NativeUtils as INativeUtils | undefined)
+        : undefined;
 const hasSandboxedStorageAccess = Platform.OS === "ios";
 
 const NativeUtils: INativeUtils = nativeUtils ?? {

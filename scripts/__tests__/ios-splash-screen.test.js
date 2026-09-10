@@ -14,6 +14,7 @@ const projectPath = path.join(
     "MusicFree.xcodeproj",
     "project.pbxproj",
 );
+const podfilePath = path.join(repositoryRoot, "ios", "Podfile");
 
 describe("iOS splash screen resources", () => {
     it("packages the storyboard required by expo-splash-screen", () => {
@@ -21,5 +22,11 @@ describe("iOS splash screen resources", () => {
 
         const project = fs.readFileSync(projectPath, "utf8");
         expect(project).toContain("SplashScreen.storyboard in Resources");
+    });
+
+    it("keeps legacy native modules on the stable React Native bridge", () => {
+        const podfile = fs.readFileSync(podfilePath, "utf8");
+
+        expect(podfile).toContain("ENV['RCT_NEW_ARCH_ENABLED'] = '0'");
     });
 });

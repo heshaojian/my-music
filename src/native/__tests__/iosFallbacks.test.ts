@@ -59,6 +59,27 @@ describe("iOS native-module fallbacks", () => {
         );
     });
 
+    it("never resolves Android-only native module names on iOS", () => {
+        const nativeModules = {};
+        ["NativeUtils", "Mp3Util", "LyricUtil"].forEach(moduleName => {
+            Object.defineProperty(nativeModules, moduleName, {
+                get: () => {
+                    throw new Error(`Unexpected iOS native lookup: ${moduleName}`);
+                },
+            });
+        });
+        jest.resetModules();
+        jest.doMock("react-native", () => ({
+            Dimensions: { get: jest.fn(() => ({ width: 390, height: 844 })) },
+            NativeModules: nativeModules,
+            Platform: { OS: "ios" },
+        }));
+
+        expect(() => require("@/native/utils")).not.toThrow();
+        expect(() => require("@/native/mp3Util")).not.toThrow();
+        expect(() => require("@/native/lyricUtil")).not.toThrow();
+    });
+
     it("fails closed when NativeUtils is absent on Android", async () => {
         jest.resetModules();
         jest.doMock("react-native", () => ({
@@ -84,6 +105,7 @@ describe("iOS native-module fallbacks", () => {
                     hideStatusBarLyric: jest.fn(),
                 },
             },
+            Platform: { OS: "android" },
         }));
         const setConfig = jest.fn();
         jest.doMock("@/core/appConfig", () => ({
