@@ -21,8 +21,15 @@ const allLanguages: ILanguage[] = [{
     languageData: enUS,
 }];
 
-const defaultLocale = PersistStatus.get("app.language") || "zh-CN";
-const currentLanguageAtom = atom<ILanguage>(allLanguages.find(item => item.locale === defaultLocale) ?? allLanguages[0]);
+const DEFAULT_LOCALE = "en-US";
+const defaultLanguage = allLanguages.find(
+    item => item.locale === DEFAULT_LOCALE,
+) as ILanguage;
+const resolveLanguage = (locale: string | null) =>
+    allLanguages.find(item => item.locale === locale) ?? defaultLanguage;
+const currentLanguageAtom = atom<ILanguage>(
+    resolveLanguage(PersistStatus.get("app.language")),
+);
 
 
 class I18N<K extends keyof ILanguageData> {
@@ -39,7 +46,7 @@ class I18N<K extends keyof ILanguageData> {
     }
 
     setLanguage(locale: string) {
-        const language = allLanguages.find(item => item.locale === locale) ?? allLanguages[0];
+        const language = resolveLanguage(locale);
         getDefaultStore().set(currentLanguageAtom, language);
         PersistStatus.set("app.language", language.locale);
     }
@@ -49,7 +56,7 @@ class I18N<K extends keyof ILanguageData> {
         if (!language) {
             return "";
         }
-        const value = language.languageData[key] ?? allLanguages[0].languageData[key] ?? "";
+        const value = language.languageData[key] ?? defaultLanguage.languageData[key] ?? "";
         if (!args) {
             return value as ILanguageData[K];
         }
