@@ -46,17 +46,20 @@ describe("persisted playback track", () => {
         expect(persisted.source).toBeUndefined();
     });
 
-    it("sanitizes every queued track into a new list", () => {
+    it("sanitizes every queued track into a new list without mutating the list", () => {
         const tracks = [
             createTrack("https://media.example.com/one.m4a?token=one"),
-            createTrack("https://media.example.com/two.m4a?token=two"),
+            createTrack("https://media.example.com/two.m4a"),
         ];
+        const original = JSON.parse(JSON.stringify(tracks));
 
         const persisted = createPersistedTrackList(tracks);
 
         expect(persisted).not.toBe(tracks);
         expect(persisted[0]).not.toBe(tracks[0]);
+        expect(persisted[0].url).toBeUndefined();
+        expect(persisted[1].url).toBe("https://media.example.com/two.m4a");
         expect(JSON.stringify(persisted)).not.toContain("token");
-        expect(tracks[0].url).toContain("token=one");
+        expect(tracks).toEqual(original);
     });
 });

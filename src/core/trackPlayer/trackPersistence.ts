@@ -45,3 +45,10 @@ export function createPersistedTrack(
 
     return { ...metadata, url: undefined } as IMusic.IMusicItem;
 }
+
+export function createPersistedTrackList(
+    tracks: readonly IMusic.IMusicItem[],
+    URLType: URLConstructor = URL,
+): IMusic.IMusicItem[] {
+    return tracks.map(track => createPersistedTrack(track, URLType));
+}

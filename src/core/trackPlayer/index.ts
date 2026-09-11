@@ -44,7 +44,10 @@ import {
     getSafePlaybackErrorDetails,
     handlePlaybackSourceFailure,
 } from "./playbackFailure";
-import { createPersistedTrack } from "./trackPersistence";
+import {
+    createPersistedTrack,
+    createPersistedTrackList,
+} from "./trackPersistence";
 import { URL } from "react-native-url-polyfill";
 
 
@@ -576,7 +579,9 @@ class TrackPlayer extends EventEmitter<{
             track = this.mergeTrackSource(musicItem, source) as IMusic.IMusicItem;
 
             // 8. 新增历史记录
-            this.musicHistoryService.addMusic(musicItem);
+            this.musicHistoryService.addMusic(
+                createPersistedTrack(musicItem, URL),
+            );
 
             trace("获取音源成功", {
                 platform: track.platform,
@@ -833,7 +838,10 @@ class TrackPlayer extends EventEmitter<{
         this.playListIndexMap = createMediaIndexMap(newPlayList);
 
         if (persist) {
-            PersistStatus.set("music.playList", newPlayList);
+            PersistStatus.set(
+                "music.playList",
+                createPersistedTrackList(newPlayList, URL),
+            );
         }
 
         this.currentIndex = this.getMusicIndexInPlayList(this.currentMusic);
