@@ -17,7 +17,14 @@ import { readAsStringAsync } from "expo-file-system";
 import { atom, getDefaultStore, useAtomValue } from "jotai";
 import { nanoid } from "nanoid";
 import { useEffect, useState } from "react";
-import { copyFile, readDir, readFile, unlink, writeFile } from "react-native-fs";
+import {
+    copyFile,
+    moveFile,
+    readDir,
+    readFile,
+    unlink,
+    writeFile,
+} from "react-native-fs";
 import { showToast } from "@/components/base/toast";
 import { devLog, errorLog, trace } from "../../utils/log";
 import pluginMeta from "./meta";
@@ -28,6 +35,12 @@ import { safeParse } from "@/utils/jsonUtil";
 import { IInjectable } from "@/types/infra";
 import { IAppConfig } from "@/types/core/config";
 import delay from "@/utils/delay";
+import {
+    ensureManagedPlugin,
+    isOwnedPluginFilePath,
+    ManagedPluginDescriptor,
+    ManagedPluginResult,
+} from "./managed/managedPluginLifecycle";
 
 const pluginsAtom = atom<Plugin[]>([]);
 const pluginCacheStore = getOrCreateMMKV("plugin.cache");
@@ -260,6 +273,38 @@ class PluginManager implements IPluginManager, IInjectable {
             success: false,
             message: "插件无法识别",
         };
+    }
+
+    async ensureManagedPlugin(
+        descriptor: ManagedPluginDescriptor,
+    ): Promise<ManagedPluginResult<Plugin>> {
+        return ensureManagedPlugin(descriptor, {
+            listPlugins: () => this.getPlugins(),
+            allocatePaths: () => {
+                const id = nanoid();
+                return {
+                    stagingPath: `${pathConst.pluginPath}.${id}.stage`,
+                    finalPath: `${pathConst.pluginPath}${id}.js`,
+                };
+            },
+            writeSource: (filePath, source) =>
+                writeFile(filePath, source, "utf8"),
+            readSource: filePath => readFile(filePath, "utf8"),
+            parsePlugin: (source, finalPath) =>
+                new Plugin(source, finalPath),
+            promote: (stagingPath, finalPath) =>
+                moveFile(stagingPath, finalPath),
+            publishPlugins: plugins => this.setPlugins([...plugins]),
+            removeFile: filePath => unlink(filePath),
+            getPlatform: plugin => plugin.name,
+            getVersion: plugin => plugin.instance.version,
+            getPath: plugin => plugin.path,
+            getHash: plugin => plugin.hash,
+            isUsablePlugin: plugin =>
+                plugin.state === PluginState.Mounted && plugin.hash.length > 0,
+            canRemoveFile: filePath =>
+                isOwnedPluginFilePath(filePath, pathConst.pluginPath),
+        });
     }
 
     /**

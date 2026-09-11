@@ -27,6 +27,7 @@ import bootstrapAtom from "./bootstrap.atom";
 import { getDefaultStore } from "jotai";
 import { ensureBootstrapPermissions } from "./permissions";
 import { getAndroidPermissionApi } from "./permissionApi";
+import { ensureBundledManagedPlugins } from "@/core/pluginManager/managed/ensureBundledManagedPlugins";
 
 
 // 依赖管理
@@ -88,6 +89,7 @@ async function bootstrapImpl() {
 
     // 加载插件
     await PluginManager.setup();
+    await ensureBundledManagedPlugins(PluginManager);
     logger.mark("插件初始化完成");
     trace("插件初始化完成");
 

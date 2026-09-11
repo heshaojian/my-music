@@ -24,6 +24,17 @@ export interface IInstalledPluginSnapshot {
     srcUrl?: string;
 }
 
+export interface IManagedPluginDescriptor {
+    readonly platform: string;
+    readonly version: string;
+    readonly source: string;
+}
+
+export interface IManagedPluginResult {
+    status: "installed" | "upgraded" | "reconciled" | "unchanged";
+    plugin: Plugin;
+}
+
 /**
  * 插件管理器接口
  */
@@ -110,6 +121,11 @@ export interface IPluginManager {
 
     /** Return copied metadata for every installed plugin, including disabled ones. */
     getInstalledPlugins(): IInstalledPluginSnapshot[];
+
+    /** Install or reconcile a bundled plugin without downgrading newer versions. */
+    ensureManagedPlugin(
+        descriptor: IManagedPluginDescriptor,
+    ): Promise<IManagedPluginResult>;
 
     /**
      * 获取按顺序排序的所有插件
