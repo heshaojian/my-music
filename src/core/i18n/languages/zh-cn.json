@@ -60,6 +60,8 @@
     "home.clickToSearch": "点击这里开始搜索",
     "dialog.deleteSheetTitle": "删除歌单",
     "dialog.deleteSheetContent": "确认删除歌单「{name}」吗？",
+    "dialog.playbackSourceUnavailable.title": "无法播放",
+    "dialog.playbackSourceUnavailable.content": "{platform} 的音频受保护或暂不可用，请尝试其他歌曲或音源插件。",
     "toast.deleteSuccess": "删除成功",
     "toast.hasStarred": "已收藏歌单",
     "toast.hasUnstarred": "已取消收藏歌单",

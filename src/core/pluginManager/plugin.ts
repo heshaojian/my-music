@@ -34,6 +34,7 @@ import MediaCache from "../mediaCache";
 import _internalPluginMeta from "./meta";
 import { createPluginRuntimeEnvironment } from "./runtimeEnvironment";
 import { IPluginManager } from "@/types/core/pluginManager";
+import { resolveProviderMediaSource } from "./mediaSourcePolicy";
 
 
 axios.defaults.timeout = 2000;
@@ -223,6 +224,15 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
 
         if (musicItem.platform === localPluginPlatform) {
             throw new Error("本地音乐不存在");
+        }
+        const preferredDirectSource = await resolveProviderMediaSource(
+            musicItem,
+            undefined,
+            URL,
+        );
+        if (preferredDirectSource) {
+            trace("播放", "使用平台直连音源");
+            return preferredDirectSource;
         }
         // 2. 缓存播放
         const mediaCache = MediaCache.getMediaCache(

@@ -76,6 +76,8 @@ export interface ILanguageData {
     // 对话框相关
     "dialog.deleteSheetTitle": string; // 删除歌单
     "dialog.deleteSheetContent": string; // 确定删除该歌单吗？
+    "dialog.playbackSourceUnavailable.title": string;
+    "dialog.playbackSourceUnavailable.content": string;
 
     "dialog.loading.reinitializeTrackPlayer": string;
 

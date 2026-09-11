@@ -60,6 +60,8 @@
     "home.clickToSearch": "Click here to start searching",
     "dialog.deleteSheetTitle": "Delete Playlist",
     "dialog.deleteSheetContent": "Are you sure to delete playlist「{name}」?",
+    "dialog.playbackSourceUnavailable.title": "Playback unavailable",
+    "dialog.playbackSourceUnavailable.content": "Audio from {platform} is protected or unavailable. Try another track or source plugin.",
     "toast.deleteSuccess": "Deleted successfully",
     "toast.hasStarred": "Playlist starred",
     "toast.hasUnstarred": "Playlist unstarred",

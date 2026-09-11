@@ -39,6 +39,13 @@ import minDistance from "@/utils/minDistance";
 import { IPluginManager } from "@/types/core/pluginManager";
 import { ImgAsset } from "@/constants/assetsConst";
 import { resolveImportedAssetOrPath } from "@/utils/fileUtils";
+import i18n from "@/core/i18n";
+import {
+    getSafePlaybackErrorDetails,
+    handlePlaybackSourceFailure,
+} from "./playbackFailure";
+import { createPersistedTrack } from "./trackPersistence";
+import { URL } from "react-native-url-polyfill";
 
 
 
@@ -211,7 +218,8 @@ class TrackPlayer extends EventEmitter<{
             ReactNativeTrackPlayer.addEventListener(
                 Event.PlaybackError,
                 async e => {
-                    errorLog("播放出错", e.message);
+                    const safeErrorDetails = getSafePlaybackErrorDetails(e);
+                    errorLog("播放出错", safeErrorDetails);
                     // WARNING: 不稳定，报错的时候有可能track已经变到下一首歌去了
                     const currentTrack =
                         await ReactNativeTrackPlayer.getActiveTrack();
@@ -231,10 +239,7 @@ class TrackPlayer extends EventEmitter<{
                         e.message &&
                         e.message !== "android-io-file-not-found"
                     ) {
-                        trace("播放出错", {
-                            message: e.message,
-                            code: e.code,
-                        });
+                        trace("播放出错", safeErrorDetails);
 
                         this.handlePlayFail();
                     }
@@ -573,7 +578,11 @@ class TrackPlayer extends EventEmitter<{
             // 8. 新增历史记录
             this.musicHistoryService.addMusic(musicItem);
 
-            trace("获取音源成功", track);
+            trace("获取音源成功", {
+                platform: track.platform,
+                title: track.title,
+                hasUrl: Boolean(track.url),
+            });
             // 9. 设置音源
             await this.setTrackSource(track as Track);
 
@@ -803,7 +812,10 @@ class TrackPlayer extends EventEmitter<{
             return;
         }
         await ReactNativeTrackPlayer.setQueue([clonedTrack, this.getFakeNextTrack()]);
-        PersistStatus.set("music.musicItem", track as IMusic.IMusicItem);
+        PersistStatus.set(
+            "music.musicItem",
+            createPersistedTrack(track as IMusic.IMusicItem, URL),
+        );
         PersistStatus.set("music.progress", 0);
         if (autoPlay) {
             await ReactNativeTrackPlayer.play();
@@ -904,11 +916,19 @@ class TrackPlayer extends EventEmitter<{
 
 
     private async handlePlayFail() {
-        // 如果自动跳转下一曲, 500s后自动跳转
-        if (!this.configService.getConfig("basic.autoStopWhenError")) {
-            await delay(500);
-            await this.skipToNext();
-        }
+        await handlePlaybackSourceFailure({
+            platform:
+                this.currentMusic?.platform ?? i18n.t("common.unknownName"),
+            autoStopWhenError: Boolean(
+                this.configService.getConfig("basic.autoStopWhenError"),
+            ),
+        }, {
+            getCurrentDialog,
+            showDialog,
+            translate: (key, args) => i18n.t(key, args),
+            delay,
+            skipToNext: () => this.skipToNext(),
+        });
     }
 
     /**

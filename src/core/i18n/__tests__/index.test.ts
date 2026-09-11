@@ -79,4 +79,16 @@ describe("i18n language defaults", () => {
         expect(i18n.t("home.songCount", {})).toBe(" songs");
         expect(i18n.t("common.search")).toBe("Search");
     });
+
+    it.each(["en-US", "zh-CN", "zh-TW"])(
+        "provides a localized playback-source error in %s",
+        locale => {
+            const { i18n } = loadI18n(locale);
+
+            expect(i18n.t("dialog.playbackSourceUnavailable.title")).not.toBe("");
+            expect(i18n.t("dialog.playbackSourceUnavailable.content", {
+                platform: "猫耳FM",
+            })).toContain("猫耳FM");
+        },
+    );
 });
