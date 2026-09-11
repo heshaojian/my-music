@@ -1,6 +1,7 @@
 const NON_PERSISTENT_MEDIA_SOURCE_PLATFORMS = new Set([
     "bilibili",
     "Audiomack",
+    "Youtube",
 ]);
 
 export function shouldPersistProviderMediaSource(platform: string): boolean {

@@ -1,6 +1,7 @@
 import { errorLog } from "@/utils/log";
 import BILIBILI_MANAGED_PLUGIN from "./bilibiliPluginSource";
 import AUDIOMACK_MANAGED_PLUGIN from "./audiomackPluginSource";
+import YOUTUBE_MANAGED_PLUGIN from "./youtubePluginSource";
 import { ManagedPluginDescriptor } from "./managedPluginLifecycle";
 
 interface ManagedPluginInstaller {
@@ -23,6 +24,7 @@ export async function ensureBundledManagedPlugins(
     descriptors: readonly ManagedPluginDescriptor[] = [
         BILIBILI_MANAGED_PLUGIN,
         AUDIOMACK_MANAGED_PLUGIN,
+        YOUTUBE_MANAGED_PLUGIN,
     ],
     onFailure: ManagedPluginFailureHandler = reportManagedPluginFailure,
 ) {
