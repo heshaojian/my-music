@@ -12,10 +12,13 @@ const secureSource = (quality: IMusic.IQualityKey) => ({
 });
 
 describe("provider media-source cache and Bilibili quality fallback", () => {
-    it("does not persist temporary Bilibili or Audiomack media sources", () => {
+    it("does not persist temporary managed-provider media sources", () => {
         expect(shouldPersistProviderMediaSource("bilibili")).toBe(false);
         expect(shouldPersistProviderMediaSource("Audiomack")).toBe(false);
+        expect(shouldPersistProviderMediaSource("Youtube")).toBe(false);
         expect(shouldPersistProviderMediaSource("audiomack")).toBe(true);
+        expect(shouldPersistProviderMediaSource("youtube")).toBe(true);
+        expect(shouldPersistProviderMediaSource("Youtube mirror")).toBe(true);
         expect(shouldPersistProviderMediaSource("Audiomack mirror")).toBe(true);
         expect(shouldPersistProviderMediaSource("another provider")).toBe(true);
     });
@@ -51,6 +54,18 @@ describe("provider media-source cache and Bilibili quality fallback", () => {
 
         expect(filterProviderMediaSourceCache(
             "Audiomack",
+            cached,
+            remove,
+        )).toBeNull();
+        expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    it("removes and ignores legacy YouTube media-source cache", () => {
+        const cached = { source: { standard: secureSource("standard") } };
+        const remove = jest.fn();
+
+        expect(filterProviderMediaSourceCache(
+            "Youtube",
             cached,
             remove,
         )).toBeNull();
