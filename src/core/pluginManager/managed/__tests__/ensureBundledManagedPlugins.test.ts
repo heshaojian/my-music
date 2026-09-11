@@ -10,6 +10,21 @@ const descriptor = {
 } as const;
 
 describe("bundled managed plugin bootstrap", () => {
+    it("registers Audiomack after Bilibili by default", async () => {
+        const manager = {
+            ensureManagedPlugin: jest.fn().mockResolvedValue({
+                status: "unchanged",
+                plugin: {},
+            }),
+        };
+
+        await ensureBundledManagedPlugins(manager);
+
+        expect(manager.ensureManagedPlugin.mock.calls.map(
+            ([managedDescriptor]) => managedDescriptor.platform,
+        )).toEqual(["bilibili", "Audiomack"]);
+    });
+
     it("awaits installation", async () => {
         let finish!: () => void;
         const pending = new Promise<void>(resolve => {
@@ -91,6 +106,10 @@ describe("bundled managed plugin bootstrap", () => {
         expect(errorLog).toHaveBeenCalledWith(
             "Managed plugin setup failed",
             { platform: "bilibili" },
+        );
+        expect(errorLog).toHaveBeenCalledWith(
+            "Managed plugin setup failed",
+            { platform: "Audiomack" },
         );
         expect(errorLog).not.toHaveBeenCalledWith(
             expect.anything(),

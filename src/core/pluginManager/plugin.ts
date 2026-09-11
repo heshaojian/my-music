@@ -36,10 +36,12 @@ import { createPluginRuntimeEnvironment } from "./runtimeEnvironment";
 import { IPluginManager } from "@/types/core/pluginManager";
 import { resolveProviderMediaSource } from "./mediaSourcePolicy";
 import {
-    filterProviderMediaSourceCache,
     resolveWithBilibiliQualityFallback,
-    shouldPersistProviderMediaSource,
 } from "./bilibiliQualityFallback";
+import {
+    filterProviderMediaSourceCache,
+    shouldPersistProviderMediaSource,
+} from "./providerMediaSourceCachePolicy";
 
 
 axios.defaults.timeout = 2000;
@@ -347,8 +349,10 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 await delay(150);
                 return this.getMediaSource(musicItem, quality, --retryCount);
             }
-            errorLog("获取真实源失败", e?.message);
-            devLog("error", "获取真实源失败", e, e?.message);
+            errorLog("获取真实源失败", { platform: this.plugin.name });
+            devLog("error", "获取真实源失败", {
+                platform: this.plugin.name,
+            });
             return null;
         }
     }
@@ -367,8 +371,10 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                     resetMediaItem(musicItem, undefined, true),
                 ) ?? null
             );
-        } catch (e: any) {
-            devLog("error", "获取音乐详情失败", e, e?.message);
+        } catch {
+            devLog("error", "获取音乐详情失败", {
+                platform: this.plugin.name,
+            });
             return null;
         }
     }
@@ -624,9 +630,11 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                     musicList: result.musicList,
                 };
             }
-        } catch (e: any) {
-            trace("获取专辑信息失败", e?.message);
-            devLog("error", "获取专辑信息失败", e, e?.message);
+        } catch {
+            trace("获取专辑信息失败", { platform: this.plugin.name });
+            devLog("error", "获取专辑信息失败", {
+                platform: this.plugin.name,
+            });
 
             return null;
         }
@@ -670,9 +678,11 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                     musicList: result.musicList,
                 };
             }
-        } catch (e: any) {
-            trace("获取歌单信息失败", e, e?.message);
-            devLog("error", "获取歌单信息失败", e, e?.message);
+        } catch {
+            trace("获取歌单信息失败", { platform: this.plugin.name });
+            devLog("error", "获取歌单信息失败", {
+                platform: this.plugin.name,
+            });
 
             return null;
         }
@@ -709,8 +719,10 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 data: result.data,
             };
         } catch (e: any) {
-            trace("查询作者信息失败", e?.message);
-            devLog("error", "查询作者信息失败", e, e?.message);
+            trace("查询作者信息失败", { platform: this.plugin.name });
+            devLog("error", "查询作者信息失败", {
+                platform: this.plugin.name,
+            });
 
             throw e;
         }
@@ -724,9 +736,10 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 (await this.plugin.instance?.importMusicSheet?.(urlLike)) ?? [];
             result.forEach(_ => resetMediaItem(_, this.plugin.name));
             return result;
-        } catch (e: any) {
-            console.log(e);
-            devLog("error", "导入歌单失败", e, e?.message);
+        } catch {
+            devLog("error", "导入歌单失败", {
+                platform: this.plugin.name,
+            });
 
             return [];
         }
@@ -744,8 +757,10 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             }
             resetMediaItem(result, this.plugin.name);
             return result;
-        } catch (e: any) {
-            devLog("error", "导入单曲失败", e, e?.message);
+        } catch {
+            devLog("error", "导入单曲失败", {
+                platform: this.plugin.name,
+            });
 
             return null;
         }
@@ -760,8 +775,10 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 throw new Error();
             }
             return result;
-        } catch (e: any) {
-            devLog("error", "获取榜单失败", e, e?.message);
+        } catch {
+            devLog("error", "获取榜单失败", {
+                platform: this.plugin.name,
+            });
             return [];
         }
     }
@@ -802,8 +819,10 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 throw new Error();
             }
             return result;
-        } catch (e: any) {
-            devLog("error", "获取推荐歌单失败", e, e?.message);
+        } catch {
+            devLog("error", "获取推荐歌单失败", {
+                platform: this.plugin.name,
+            });
             return {
                 data: [],
             };
@@ -834,8 +853,10 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             result.data.forEach(item => resetMediaItem(item, this.plugin.name));
 
             return result;
-        } catch (e: any) {
-            devLog("error", "获取推荐歌单详情失败", e, e?.message);
+        } catch {
+            devLog("error", "获取推荐歌单详情失败", {
+                platform: this.plugin.name,
+            });
             return {
                 isEnd: true,
                 data: [],

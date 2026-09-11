@@ -44,25 +44,6 @@ function copyValidBilibiliSource(
     };
 }
 
-export function shouldPersistProviderMediaSource(platform: string): boolean {
-    return platform !== BILIBILI_PLATFORM;
-}
-
-export function filterProviderMediaSourceCache<T>(
-    platform: string,
-    cachedSource: T | null,
-    removeCachedSource: () => void,
-): T | null {
-    if (platform !== BILIBILI_PLATFORM) {
-        return cachedSource;
-    }
-
-    if (cachedSource) {
-        removeCachedSource();
-    }
-    return null;
-}
-
 export async function resolveWithBilibiliQualityFallback(
     platform: string,
     requestedQuality: IMusic.IQualityKey,

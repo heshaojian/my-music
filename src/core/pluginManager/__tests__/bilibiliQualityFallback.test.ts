@@ -1,17 +1,22 @@
 import {
-    filterProviderMediaSourceCache,
     resolveWithBilibiliQualityFallback,
-    shouldPersistProviderMediaSource,
 } from "../bilibiliQualityFallback";
+import {
+    filterProviderMediaSourceCache,
+    shouldPersistProviderMediaSource,
+} from "../providerMediaSourceCachePolicy";
 
 const secureSource = (quality: IMusic.IQualityKey) => ({
     url: `https://media.example.com/${quality}.m4s?deadline=123`,
     headers: { Referer: "https://www.bilibili.com/" },
 });
 
-describe("Bilibili quality fallback", () => {
-    it("does not persist temporary Bilibili media sources", () => {
+describe("provider media-source cache and Bilibili quality fallback", () => {
+    it("does not persist temporary Bilibili or Audiomack media sources", () => {
         expect(shouldPersistProviderMediaSource("bilibili")).toBe(false);
+        expect(shouldPersistProviderMediaSource("Audiomack")).toBe(false);
+        expect(shouldPersistProviderMediaSource("audiomack")).toBe(true);
+        expect(shouldPersistProviderMediaSource("Audiomack mirror")).toBe(true);
         expect(shouldPersistProviderMediaSource("another provider")).toBe(true);
     });
 
@@ -38,6 +43,18 @@ describe("Bilibili quality fallback", () => {
             remove,
         )).toBe(cached);
         expect(remove).not.toHaveBeenCalled();
+    });
+
+    it("removes and ignores legacy Audiomack media-source cache", () => {
+        const cached = { source: { high: secureSource("high") } };
+        const remove = jest.fn();
+
+        expect(filterProviderMediaSourceCache(
+            "Audiomack",
+            cached,
+            remove,
+        )).toBeNull();
+        expect(remove).toHaveBeenCalledTimes(1);
     });
 
     it("keeps a valid highest-quality source without retrying", async () => {
