@@ -140,7 +140,7 @@ export default function AboutSetting() {
 
                 <ThemeText style={style.content}>
                     开发这个软件的最初目的是自用，顺便分享出来给有需要的人。如果这个软件能对你有些帮助，那这就是
-                    MusicFree 存在的意义。
+                    MyMusic 存在的意义。
                 </ThemeText>
 
                 <ThemeText style={style.content}>by: 猫头猫</ThemeText>

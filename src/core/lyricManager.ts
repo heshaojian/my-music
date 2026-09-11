@@ -69,7 +69,7 @@ class LyricManager implements IInjectable {
                     LyricUtil.setStatusBarLyricText(
                         `${musicItem.title} - ${musicItem.artist}`,);
                 } else {
-                    LyricUtil.setStatusBarLyricText("MusicFree");
+                    LyricUtil.setStatusBarLyricText("MyMusic");
                 }
             }
         });
@@ -114,7 +114,7 @@ class LyricManager implements IInjectable {
                 fontSize: this.appConfig.getConfig("lyric.fontSize"),
             };
             LyricUtil.showStatusBarLyric(
-                "MusicFree",
+                "MyMusic",
                 statusBarLyricConfig ?? {}
             );
         }
@@ -242,7 +242,7 @@ class LyricManager implements IInjectable {
         getDefaultStore().set(currentLyricItemAtom, null);
         if (this.appConfig.getConfig("lyric.showStatusBarLyric")) {
             const musicItem = this.trackPlayer.currentMusic;
-            LyricUtil.setStatusBarLyricText(musicItem ? `${musicItem.title} - ${musicItem.artist}` : "MusicFree");
+            LyricUtil.setStatusBarLyricText(musicItem ? `${musicItem.title} - ${musicItem.artist}` : "MyMusic");
         }
     }
 
@@ -321,7 +321,7 @@ class LyricManager implements IInjectable {
                     );
                 } else {
                     const musicItem = this.trackPlayer.currentMusic;
-                    LyricUtil.setStatusBarLyricText(musicItem ? `${musicItem.title} - ${musicItem.artist}` : "MusicFree");
+                    LyricUtil.setStatusBarLyricText(musicItem ? `${musicItem.title} - ${musicItem.artist}` : "MyMusic");
                 }
             }
         } catch (err) {

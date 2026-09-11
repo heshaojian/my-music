@@ -717,7 +717,7 @@ function LyricSetting() {
                             fontSize: Config.getConfig("lyric.fontSize"),
                         };
                         LyricUtil.showStatusBarLyric(
-                            "MusicFree",
+                            "MyMusic",
                             statusBarLyricConfig ?? {}
                         );
                         Config.setConfig("lyric.showStatusBarLyric", true);
