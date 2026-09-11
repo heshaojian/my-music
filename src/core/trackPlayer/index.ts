@@ -175,6 +175,7 @@ class TrackPlayer extends EventEmitter<{
                     track.headers = newSource?.headers || track.headers;
 
                     if (isSameMediaItem(this.currentMusic, track)) {
+                        this.setQuality(newSource?.quality ?? quality);
                         await this.setTrackSource(track as Track, false);
                         if (progress) {
                             // 异步
@@ -498,7 +499,7 @@ class TrackPlayer extends EventEmitter<{
                         )) ?? null;
                     // 5.3.1 获取到真实源
                     if (source) {
-                        this.setQuality(quality);
+                        this.setQuality(source.quality ?? quality);
                         break;
                     }
                 } else {
@@ -546,7 +547,7 @@ class TrackPlayer extends EventEmitter<{
                                         )) ?? null;
                                     // 5.4.1 获取到真实源
                                     if (source) {
-                                        this.setQuality(quality);
+                                        this.setQuality(source.quality ?? quality);
                                         break;
                                     }
                                 } else {
@@ -708,7 +709,7 @@ class TrackPlayer extends EventEmitter<{
                 );
 
                 await this.seekTo(progress.position ?? 0);
-                this.setQuality(newQuality);
+                this.setQuality(newSource.quality ?? newQuality);
             }
             return true;
         } catch {

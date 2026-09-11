@@ -35,6 +35,11 @@ import _internalPluginMeta from "./meta";
 import { createPluginRuntimeEnvironment } from "./runtimeEnvironment";
 import { IPluginManager } from "@/types/core/pluginManager";
 import { resolveProviderMediaSource } from "./mediaSourcePolicy";
+import {
+    filterProviderMediaSourceCache,
+    resolveWithBilibiliQualityFallback,
+    shouldPersistProviderMediaSource,
+} from "./bilibiliQualityFallback";
 
 
 axios.defaults.timeout = 2000;
@@ -235,9 +240,11 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             return preferredDirectSource;
         }
         // 2. 缓存播放
-        const mediaCache = MediaCache.getMediaCache(
-            musicItem,
-        ) as IMusic.IMusicItem | null;
+        const mediaCache = filterProviderMediaSourceCache(
+            musicItem.platform,
+            MediaCache.getMediaCache(musicItem) as IMusic.IMusicItem | null,
+            () => MediaCache.removeMediaCache(musicItem),
+        );
         const pluginCacheControl =
             this.plugin.instance.cacheControl ?? "no-cache";
         if (
@@ -279,10 +286,19 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             };
         }
         try {
-            const { url, headers } = (await parserPlugin.instance.getMediaSource(
-                musicItem,
+            const pluginSource = await resolveWithBilibiliQualityFallback(
+                musicItem.platform,
                 quality,
-            )) ?? { url: musicItem?.qualities?.[quality]?.url };
+                async requestedQuality =>
+                    (await parserPlugin.instance.getMediaSource!(
+                        musicItem,
+                        requestedQuality,
+                    )) ?? {
+                        url: musicItem?.qualities?.[requestedQuality]?.url,
+                    },
+                URL,
+            );
+            const { url, headers } = pluginSource ?? {};
             if (!url) {
                 throw new Error("NOT RETRY");
             }
@@ -290,7 +306,9 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             const result = {
                 url,
                 headers,
-                userAgent: headers?.["user-agent"],
+                userAgent:
+                    pluginSource?.userAgent ?? headers?.["user-agent"],
+                quality: pluginSource?.quality ?? quality,
             } as IPlugin.IMediaSourceResult;
             const authFormattedResult = formatAuthUrl(result.url!);
             if (authFormattedResult.auth) {
@@ -303,13 +321,14 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
 
             if (
                 pluginCacheControl !== CacheControl.NoStore &&
-                !notUpdateCache
+                !notUpdateCache &&
+                shouldPersistProviderMediaSource(musicItem.platform)
             ) {
                 // 更新缓存
                 const cacheSource = {
                     headers: result.headers,
                     userAgent: result.userAgent,
-                    url,
+                    url: result.url,
                 };
                 let realMusicItem = {
                     ...musicItem,
@@ -317,7 +336,7 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 };
                 realMusicItem.source = {
                     ...(realMusicItem.source || {}),
-                    [quality]: cacheSource,
+                    [result.quality ?? quality]: cacheSource,
                 };
 
                 MediaCache.setMediaCache(realMusicItem);
