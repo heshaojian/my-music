@@ -23,6 +23,10 @@ describe("bundled managed plugin bootstrap", () => {
         expect(manager.ensureManagedPlugin.mock.calls.map(
             ([managedDescriptor]) => managedDescriptor.platform,
         )).toEqual(["bilibili", "Audiomack", "Youtube"]);
+        expect(manager.ensureManagedPlugin.mock.calls[2][0]).toMatchObject({
+            platform: "Youtube",
+            version: "0.0.3-mymusic.1",
+        });
     });
 
     it("awaits installation", async () => {

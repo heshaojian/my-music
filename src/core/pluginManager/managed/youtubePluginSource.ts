@@ -8,10 +8,12 @@ const HOMEPAGE_URL = "https://www.youtube.com/";
 const SEARCH_URL = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false";
 const PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
 const BROWSER_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
-const PLAYER_USER_AGENT = "com.google.android.apps.youtube.vr.oculus/1.71.26 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip";
+const PLAYER_CLIENT_VERSION = "1.65.10";
+const PLAYER_USER_AGENT = "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip";
+const IS_IOS = typeof env === "object" && env && env.os === "ios";
 const PLAYER_CLIENT = Object.freeze({
     clientName: "ANDROID_VR",
-    clientVersion: "1.71.26",
+    clientVersion: PLAYER_CLIENT_VERSION,
     deviceMake: "Oculus",
     deviceModel: "Quest 3",
     androidSdkVersion: 32,
@@ -228,7 +230,7 @@ async function requestPlayer(videoId, visitor) {
         headers: {
             "Content-Type": "application/json",
             "X-Youtube-Client-Name": "28",
-            "X-Youtube-Client-Version": "1.71.26",
+            "X-Youtube-Client-Version": PLAYER_CLIENT_VERSION,
             "X-Goog-Visitor-Id": visitor,
             Origin: HOMEPAGE_URL.slice(0, -1),
             "user-agent": PLAYER_USER_AGENT,
@@ -260,8 +262,15 @@ function isAllowedMediaUrl(value) {
 }
 
 function isAudioOnly(format) {
-    return typeof format.mimeType === "string" &&
-        format.mimeType.toLowerCase().startsWith("audio/");
+    if (typeof format.mimeType !== "string" ||
+        !format.mimeType.toLowerCase().startsWith("audio/")) {
+        return false;
+    }
+    if (!IS_IOS) {
+        return true;
+    }
+    return format.mimeType.toLowerCase().startsWith("audio/mp4") &&
+        /codecs="[^"]*mp4a(?:\.|[,"])/i.test(format.mimeType);
 }
 
 function isProgressiveWithAudio(format) {
@@ -276,9 +285,16 @@ function isProgressiveWithAudio(format) {
             Number(format.audioSampleRate) > 0) ||
         (Number.isFinite(format.audioChannels) && format.audioChannels > 0);
     const codecSection = format.mimeType.match(/codecs="([^"]+)"/i);
-    const hasKnownAudioCodec = Boolean(codecSection && codecSection[1]
-        .split(",")
-        .some(codec => /^(mp4a|opus|vorbis|ac-3|ec-3)(\.|$)/i.test(codec.trim())));
+    const codecs = codecSection
+        ? codecSection[1].split(",").map(codec => codec.trim())
+        : [];
+    const hasKnownAudioCodec = codecs
+        .some(codec => /^(mp4a|opus|vorbis|ac-3|ec-3)(\.|$)/i.test(codec));
+    const hasIosaacCodec = format.mimeType.toLowerCase().startsWith("video/mp4") &&
+        codecs.some(codec => /^mp4a(\.|$)/i.test(codec));
+    if (IS_IOS) {
+        return hasIosaacCodec;
+    }
     return hasAudioMetadata || hasKnownAudioCodec;
 }
 
@@ -403,7 +419,7 @@ async function getMediaSource(musicItem, quality) {
 module.exports = {
     platform: "Youtube",
     author: "MyMusic",
-    version: "0.0.2-mymusic.1",
+    version: "0.0.3-mymusic.1",
     supportedSearchType: ["music"],
     cacheControl: "no-store",
     search,
@@ -413,7 +429,7 @@ module.exports = {
 
 export const YOUTUBE_MANAGED_PLUGIN = {
     platform: "Youtube",
-    version: "0.0.2-mymusic.1",
+    version: "0.0.3-mymusic.1",
     source: YOUTUBE_PLUGIN_SOURCE,
 } as const;
 

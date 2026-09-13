@@ -73,7 +73,8 @@ function audioFormat(
 function createPlugin({
     get = mockGet(),
     post = mockPost(),
-}: { get?: AxiosGet; post?: AxiosPost } = {}) {
+    os = "ios",
+}: { get?: AxiosGet; post?: AxiosPost; os?: "ios" | "android" } = {}) {
     const module = { exports: {} as YouTubePlugin };
     const axios = { get, post };
     const dependencies: Record<string, unknown> = {
@@ -95,7 +96,7 @@ function createPlugin({
         module,
         module.exports,
         { log: jest.fn(), warn: jest.fn(), error: jest.fn() },
-        { os: "ios" },
+        { os },
         URL,
         { env: {} },
     );
@@ -108,11 +109,11 @@ describe("managed YouTube playback", () => {
 
         expect(YOUTUBE_MANAGED_PLUGIN).toMatchObject({
             platform: "Youtube",
-            version: "0.0.2-mymusic.1",
+            version: "0.0.3-mymusic.1",
         });
         expect(plugin).toMatchObject({
             platform: "Youtube",
-            version: "0.0.2-mymusic.1",
+            version: "0.0.3-mymusic.1",
             cacheControl: "no-store",
             supportedSearchType: ["music"],
             search: expect.any(Function),
@@ -201,7 +202,7 @@ describe("managed YouTube playback", () => {
             .resolves.toEqual({
                 url: MEDIA_URL,
                 headers: expect.objectContaining({
-                    "user-agent": expect.stringContaining("youtube.vr.oculus/1.71.26"),
+                    "user-agent": expect.stringContaining("youtube.vr.oculus/1.65.10"),
                 }),
                 quality: "standard",
             });
@@ -224,7 +225,7 @@ describe("managed YouTube playback", () => {
                 context: {
                     client: expect.objectContaining({
                         clientName: "ANDROID_VR",
-                        clientVersion: "1.71.26",
+                        clientVersion: "1.65.10",
                         deviceMake: "Oculus",
                         deviceModel: "Quest 3",
                         androidSdkVersion: 32,
@@ -236,7 +237,7 @@ describe("managed YouTube playback", () => {
                 withCredentials: true,
                 headers: expect.objectContaining({
                     "X-Youtube-Client-Name": "28",
-                    "X-Youtube-Client-Version": "1.71.26",
+                    "X-Youtube-Client-Version": "1.65.10",
                     "X-Goog-Visitor-Id": "visitor-A",
                     Origin: "https://www.youtube.com",
                 }),
@@ -386,6 +387,71 @@ describe("managed YouTube playback", () => {
         const { plugin } = createPlugin({ post });
 
         await expect(plugin.getMediaSource({ id: VIDEO_ID }, "super"))
+            .resolves.toMatchObject({ url: MEDIA_URL });
+    });
+
+    it("selects AAC in MP4 on iOS even when WebM Opus is nearer the requested bitrate", async () => {
+        const aacUrl = "https://rr1.googlevideo.com/aac";
+        const webmUrl = "https://rr1.googlevideo.com/opus";
+        const post = mockPost(async () => ({
+            data: playable([
+                audioFormat(aacUrl, 128000),
+                audioFormat(webmUrl, 192000, {
+                    mimeType: "audio/webm; codecs=\"opus\"",
+                }),
+            ]),
+        }));
+        const { plugin } = createPlugin({ post, os: "ios" });
+
+        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "high"))
+            .resolves.toMatchObject({ url: aacUrl });
+    });
+
+    it("falls back to progressive MP4 with AAC on iOS when adaptive audio is WebM-only", async () => {
+        const progressiveUrl = "https://rr1.googlevideo.com/progressive-aac";
+        const post = mockPost(async () => ({
+            data: playable([
+                audioFormat("https://rr1.googlevideo.com/opus", 128000, {
+                    mimeType: "audio/webm; codecs=\"opus\"",
+                }),
+            ], [{
+                url: progressiveUrl,
+                bitrate: 256000,
+                mimeType: "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"",
+                audioQuality: "AUDIO_QUALITY_MEDIUM",
+            }]),
+        }));
+        const { plugin } = createPlugin({ post, os: "ios" });
+
+        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
+            .resolves.toMatchObject({ url: progressiveUrl });
+    });
+
+    it("returns no source on iOS when only WebM Opus is available", async () => {
+        const post = mockPost(async () => ({
+            data: playable([
+                audioFormat(MEDIA_URL, 128000, {
+                    mimeType: "audio/webm; codecs=\"opus\"",
+                }),
+            ]),
+        }));
+        const { plugin } = createPlugin({ post, os: "ios" });
+
+        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
+            .resolves.toBeNull();
+    });
+
+    it("retains WebM Opus playback on Android", async () => {
+        const post = mockPost(async () => ({
+            data: playable([
+                audioFormat(MEDIA_URL, 128000, {
+                    mimeType: "audio/webm; codecs=\"opus\"",
+                }),
+            ]),
+        }));
+        const { plugin } = createPlugin({ post, os: "android" });
+
+        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
             .resolves.toMatchObject({ url: MEDIA_URL });
     });
 
