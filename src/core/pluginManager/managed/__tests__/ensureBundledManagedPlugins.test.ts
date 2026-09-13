@@ -1,4 +1,7 @@
-import { ensureBundledManagedPlugins } from "../ensureBundledManagedPlugins";
+import {
+    ensureBundledManagedPlugins,
+    isBundledManagedPluginPlatform,
+} from "../ensureBundledManagedPlugins";
 import { errorLog } from "@/utils/log";
 
 jest.mock("@/utils/log", () => ({ errorLog: jest.fn() }));
@@ -10,7 +13,13 @@ const descriptor = {
 } as const;
 
 describe("bundled managed plugin bootstrap", () => {
-    it("registers YouTube after Audiomack and Bilibili by default", async () => {
+    it("reserves bundled provider identities from third-party replacement", () => {
+        expect(isBundledManagedPluginPlatform("Youtube")).toBe(true);
+        expect(isBundledManagedPluginPlatform("快手")).toBe(true);
+        expect(isBundledManagedPluginPlatform("Spotify")).toBe(false);
+    });
+
+    it("registers every official provider as a managed default", async () => {
         const manager = {
             ensureManagedPlugin: jest.fn().mockResolvedValue({
                 status: "unchanged",
@@ -22,11 +31,39 @@ describe("bundled managed plugin bootstrap", () => {
 
         expect(manager.ensureManagedPlugin.mock.calls.map(
             ([managedDescriptor]) => managedDescriptor.platform,
-        )).toEqual(["bilibili", "Audiomack", "Youtube"]);
-        expect(manager.ensureManagedPlugin.mock.calls[2][0]).toMatchObject({
-            platform: "Youtube",
-            version: "0.0.3-mymusic.1",
-        });
+        )).toEqual([
+            "bilibili",
+            "Audiomack",
+            "Youtube",
+            "歌词网",
+            "歌词千寻",
+            "Navidrome",
+            "suno",
+            "udio",
+            "猫耳FM",
+            "快手",
+            "音悦台",
+            "WebDAV",
+        ]);
+        expect(manager.ensureManagedPlugin.mock.calls.map(
+            ([managedDescriptor]) => [
+                managedDescriptor.platform,
+                managedDescriptor.version,
+            ],
+        )).toEqual([
+            ["bilibili", "0.3.2-mymusic.1"],
+            ["Audiomack", "0.0.3-mymusic.1"],
+            ["Youtube", "0.0.3-mymusic.1"],
+            ["歌词网", "0.0.1-mymusic.1"],
+            ["歌词千寻", "0.0.1-mymusic.1"],
+            ["Navidrome", "0.0.1-mymusic.1"],
+            ["suno", "0.0.2-mymusic.1"],
+            ["udio", "0.0.2-mymusic.1"],
+            ["猫耳FM", "0.1.5-mymusic.1"],
+            ["快手", "0.0.5-mymusic.1"],
+            ["音悦台", "0.0.3-mymusic.1"],
+            ["WebDAV", "0.0.3-mymusic.1"],
+        ]);
     });
 
     it("awaits installation", async () => {
@@ -115,10 +152,7 @@ describe("bundled managed plugin bootstrap", () => {
             "Managed plugin setup failed",
             { platform: "Audiomack" },
         );
-        expect(errorLog).toHaveBeenCalledWith(
-            "Managed plugin setup failed",
-            { platform: "Youtube" },
-        );
+        expect(errorLog).toHaveBeenCalledTimes(12);
         expect(errorLog).not.toHaveBeenCalledWith(
             expect.anything(),
             expect.objectContaining({ error: failure }),

@@ -35,6 +35,8 @@ declare namespace IPlugin {
         name?: string;
         /** 提示文案 */
         hint?: string;
+        /** 输入类型 */
+        type?: "password" | string;
     }
 
     interface IAlbumInfoResult {

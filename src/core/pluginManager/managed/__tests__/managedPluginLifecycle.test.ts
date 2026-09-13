@@ -72,6 +72,7 @@ function createHarness(initial: TestPlugin[] = []) {
         getVersion: plugin => plugin.version,
         getPath: plugin => plugin.path,
         getHash: plugin => plugin.hash,
+        getSourceHash: () => "managed-hash",
         isUsablePlugin: () => true,
         canRemoveFile: () => true,
     };
@@ -155,7 +156,7 @@ describe("managed plugin lifecycle", () => {
         expect(harness.events).toContain("remove:/plugins/upstream.js");
     });
 
-    it("does not downgrade a newer exact-platform plugin", async () => {
+    it("replaces a newer same-name plugin when its source is not the bundled source", async () => {
         const newer: TestPlugin = {
             name: "bilibili",
             version: "0.4.0",
@@ -165,7 +166,21 @@ describe("managed plugin lifecycle", () => {
         const harness = createHarness([newer]);
 
         await expect(ensureManagedPlugin(descriptor, harness.operations))
-            .resolves.toEqual({ status: "unchanged", plugin: newer });
+            .resolves.toMatchObject({ status: "upgraded" });
+        expect(harness.events).toContain("remove:/plugins/newer.js");
+    });
+
+    it("keeps an exact bundled-source plugin unchanged", async () => {
+        const bundled: TestPlugin = {
+            name: "bilibili",
+            version: descriptor.version,
+            hash: "managed-hash",
+            path: "/plugins/current.js",
+        };
+        const harness = createHarness([bundled]);
+
+        await expect(ensureManagedPlugin(descriptor, harness.operations))
+            .resolves.toEqual({ status: "unchanged", plugin: bundled });
         expect(harness.events).toEqual([]);
     });
 
@@ -201,7 +216,7 @@ describe("managed plugin lifecycle", () => {
         expect(harness.events).not.toContain("remove:/plugins/similar.js");
     });
 
-    it("reconciles exact-platform duplicates deterministically", async () => {
+    it("replaces exact-platform duplicates when none matches bundled source", async () => {
         const laterPath: TestPlugin = {
             name: "bilibili",
             version: "0.4.0",
@@ -223,10 +238,12 @@ describe("managed plugin lifecycle", () => {
         const harness = createHarness([laterPath, other, earlierPath]);
 
         await expect(ensureManagedPlugin(descriptor, harness.operations))
-            .resolves.toEqual({ status: "reconciled", plugin: earlierPath });
+            .resolves.toMatchObject({ status: "upgraded" });
 
-        expect(harness.getPlugins()).toEqual([earlierPath, other]);
-        expect(harness.events).toEqual(["publish", "remove:/plugins/z.js"]);
+        expect(harness.getPlugins()).toEqual([
+            expect.objectContaining({ hash: "managed-hash" }),
+            other,
+        ]);
     });
 
     it("never removes a plugin path rejected by the filesystem boundary", async () => {
@@ -244,7 +261,7 @@ describe("managed plugin lifecycle", () => {
         expect(harness.events).not.toContain("remove:/documents/private.db");
     });
 
-    it("chooses the highest valid duplicate over invalid and older versions", async () => {
+    it("replaces all same-name duplicates unless one matches bundled source", async () => {
         const invalid = {
             name: "bilibili",
             version: "unknown",
@@ -266,8 +283,10 @@ describe("managed plugin lifecycle", () => {
         const harness = createHarness([invalid, older, newest]);
 
         await expect(ensureManagedPlugin(descriptor, harness.operations))
-            .resolves.toEqual({ status: "reconciled", plugin: newest });
-        expect(harness.getPlugins()).toEqual([newest]);
+            .resolves.toMatchObject({ status: "upgraded" });
+        expect(harness.getPlugins()).toEqual([
+            expect.objectContaining({ hash: "managed-hash" }),
+        ]);
     });
 
     it.each([

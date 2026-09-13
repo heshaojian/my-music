@@ -58,8 +58,8 @@ const mediaItem = {
     bvid: "BV123",
     cid: "456",
 };
-const primary = "https://primary.example.com/audio.m4s?token=primary";
-const backup = "https://backup.example.com/audio.m4s?token=backup";
+const primary = "https://upos-primary.bilivideo.com/audio.m4s?token=primary";
+const backup = "https://upos-backup.bilivideo.com/audio.m4s?token=backup";
 
 describe("managed Bilibili CDN selection", () => {
     it("exports the managed identity without a remote update URL", () => {
@@ -77,7 +77,7 @@ describe("managed Bilibili CDN selection", () => {
 
         await expect(plugin.getMediaSource!(mediaItem, "super")).resolves.toMatchObject({
             url: backup,
-            headers: { host: "backup.example.com" },
+            headers: { host: "upos-backup.bilivideo.com" },
         });
     });
 
@@ -87,7 +87,7 @@ describe("managed Bilibili CDN selection", () => {
 
         await expect(plugin.getMediaSource!(mediaItem, "super")).resolves.toMatchObject({
             url: primary,
-            headers: { host: "primary.example.com" },
+            headers: { host: "upos-primary.bilivideo.com" },
         });
     });
 
@@ -154,7 +154,7 @@ describe("managed Bilibili CDN selection", () => {
 
         await expect(plugin.getMediaSource!(mediaItem, "super")).resolves.toMatchObject({
             url: backup,
-            headers: { host: "backup.example.com" },
+            headers: { host: "upos-backup.bilivideo.com" },
         });
     });
 
@@ -188,15 +188,15 @@ describe("managed Bilibili CDN selection", () => {
 
     it("selects quality dynamically without mutating the provider audio array", async () => {
         const audios = [
-            { bandwidth: 320000, baseUrl: "https://primary.example.com/high.m4s" },
-            { bandwidth: 64000, baseUrl: "https://primary.example.com/low.m4s" },
-            { bandwidth: 128000, baseUrl: "https://primary.example.com/standard.m4s" },
+            { bandwidth: 320000, baseUrl: "https://upos-primary.bilivideo.com/high.m4s" },
+            { bandwidth: 64000, baseUrl: "https://upos-primary.bilivideo.com/low.m4s" },
+            { bandwidth: 128000, baseUrl: "https://upos-primary.bilivideo.com/standard.m4s" },
         ];
         const original = JSON.parse(JSON.stringify(audios));
         const { plugin } = createPlugin("android", audios);
 
         await expect(plugin.getMediaSource!(mediaItem, "standard")).resolves.toMatchObject({
-            url: "https://primary.example.com/standard.m4s",
+            url: "https://upos-primary.bilivideo.com/standard.m4s",
         });
         expect(audios).toEqual(original);
     });

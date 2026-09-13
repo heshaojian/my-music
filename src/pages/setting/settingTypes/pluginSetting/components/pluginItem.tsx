@@ -186,7 +186,7 @@ function _PluginItem(props: IPluginItemProps) {
                 if (Array.isArray(plugin.instance.userVariables)) {
                     showPanel("SetUserVariables", {
                         async onOk(newValue, closePanel) {
-                            pluginManager.setUserVariables(plugin, newValue);
+                            await pluginManager.setUserVariables(plugin, newValue);
                             Toast.success(t("toast.settingSuccess"));
                             closePanel();
                         },

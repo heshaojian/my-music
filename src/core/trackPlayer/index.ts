@@ -35,7 +35,6 @@ import { TrackPlayerEvents } from "@/core.defination/trackPlayer";
 import type { IAppConfig } from "@/types/core/config";
 import type { IMusicHistory } from "@/types/core/musicHistory";
 import { ITrackPlayer } from "@/types/core/trackPlayer/index";
-import minDistance from "@/utils/minDistance";
 import { IPluginManager } from "@/types/core/pluginManager";
 import { ImgAsset } from "@/constants/assetsConst";
 import { resolveImportedAssetOrPath } from "@/utils/fileUtils";
@@ -49,6 +48,11 @@ import {
     createPersistedTrackList,
 } from "./trackPersistence";
 import { URL } from "react-native-url-polyfill";
+import {
+    ensureCrossProviderPlaybackFallbackDefault,
+    getPlaybackPersistenceTrack,
+    resolveCrossProviderPlaybackFallback,
+} from "./crossProviderPlaybackFallback";
 
 
 
@@ -136,6 +140,7 @@ class TrackPlayer extends EventEmitter<{
 
 
     async setupTrackPlayer() {
+        ensureCrossProviderPlaybackFallbackDefault(this.configService);
         const rate = PersistStatus.get("music.rate");
         const musicQueue = PersistStatus.get("music.playList");
         const repeatMode = PersistStatus.get("music.repeatMode");
@@ -480,6 +485,7 @@ class TrackPlayer extends EventEmitter<{
 
             // 5. 获取音源
             let track: IMusic.IMusicItem;
+            let usedCrossProviderFallback = false;
 
             // 5.1 通过插件获取音源
             const plugin = this.pluginManagerService.getByName(musicItem.platform);
@@ -528,33 +534,22 @@ class TrackPlayer extends EventEmitter<{
                     // 插件失效的情况
                     if (this.configService.getConfig("basic.tryChangeSourceWhenPlayFail")) {
                         // 重试
-                        const similarMusic = await this.getSimilarMusic(
+                        const searchablePlugins =
+                            this.pluginManagerService.getSearchablePlugins("music");
+                        const fallback = await resolveCrossProviderPlaybackFallback({
                             musicItem,
-                            "music",
-                            () => !this.isCurrentMusic(musicItem),
-                        );
+                            qualityOrder,
+                            getPluginByName: name =>
+                                searchablePlugins.find(pluginItem =>
+                                    pluginItem.name === name,
+                                ),
+                            shouldAbort: () => !this.isCurrentMusic(musicItem),
+                        });
 
-                        if (similarMusic) {
-                            const similarMusicPlugin =
-                                this.pluginManagerService.getByMedia(similarMusic);
-
-                            for (let quality of qualityOrder) {
-                                if (this.isCurrentMusic(musicItem)) {
-                                    source =
-                                        (await similarMusicPlugin?.methods?.getMediaSource(
-                                            similarMusic,
-                                            quality,
-                                        )) ?? null;
-                                    // 5.4.1 获取到真实源
-                                    if (source) {
-                                        this.setQuality(source.quality ?? quality);
-                                        break;
-                                    }
-                                } else {
-                                    // 5.4.2 已经切换到其他歌曲了，
-                                    return;
-                                }
-                            }
+                        if (fallback) {
+                            source = fallback.source;
+                            usedCrossProviderFallback = true;
+                            this.setQuality(source.quality ?? "standard");
                         }
 
                         if (!source) {
@@ -590,7 +585,15 @@ class TrackPlayer extends EventEmitter<{
                 hasUrl: Boolean(track.url),
             });
             // 9. 设置音源
-            await this.setTrackSource(track as Track);
+            await this.setTrackSource(
+                track as Track,
+                true,
+                getPlaybackPersistenceTrack(
+                    track,
+                    musicItem,
+                    usedCrossProviderFallback,
+                ),
+            );
 
             // 10. 获取补充信息
             let info: Partial<IMusic.IMusicItem> | null = null;
@@ -812,7 +815,11 @@ class TrackPlayer extends EventEmitter<{
     }
 
     // 设置音源
-    private async setTrackSource(track: Track, autoPlay = true) {
+    private async setTrackSource(
+        track: Track,
+        autoPlay = true,
+        persistedTrack: IMusic.IMusicItem = track as IMusic.IMusicItem,
+    ) {
         const clonedTrack = this.patchMediaArtwork(track);
         if (!clonedTrack) {
             return;
@@ -820,7 +827,7 @@ class TrackPlayer extends EventEmitter<{
         await ReactNativeTrackPlayer.setQueue([clonedTrack, this.getFakeNextTrack()]);
         PersistStatus.set(
             "music.musicItem",
-            createPersistedTrack(track as IMusic.IMusicItem, URL),
+            createPersistedTrack(persistedTrack, URL),
         );
         PersistStatus.set("music.progress", 0);
         if (autoPlay) {
@@ -939,72 +946,6 @@ class TrackPlayer extends EventEmitter<{
             skipToNext: () => this.skipToNext(),
         });
     }
-
-    /**
- *
- * @param musicItem 音乐类型
- * @param type 媒体类型
- * @param abortFunction 如果函数为true，则中断
- * @returns
- */
-    private async getSimilarMusic<T extends ICommon.SupportMediaType>(
-        musicItem: IMusic.IMusicItem,
-        type: T = "music" as T,
-        abortFunction?: () => boolean,
-    ): Promise<ICommon.SupportMediaItemBase[T] | null> {
-        const keyword = musicItem.alias || musicItem.title;
-        const plugins = this.pluginManagerService.getSearchablePlugins(type);
-
-        let distance = Infinity;
-        let minDistanceMusicItem;
-        let targetPlugin;
-
-        const startTime = Date.now();
-
-        for (let plugin of plugins) {
-            // 超时时间：8s
-            if (abortFunction?.() || Date.now() - startTime > 8000) {
-                break;
-            }
-            if (plugin.name === musicItem.platform) {
-                continue;
-            }
-            const results = await plugin.methods
-                .search(keyword, 1, type)
-                .catch(() => null);
-
-            // 取前两个
-            const firstTwo = results?.data?.slice(0, 2) || [];
-
-            for (let item of firstTwo) {
-                if (item.title === keyword && item.artist === musicItem.artist) {
-                    distance = 0;
-                    minDistanceMusicItem = item;
-                    targetPlugin = plugin;
-                    break;
-                } else {
-                    const dist =
-                        minDistance(keyword, musicItem.title) +
-                        minDistance(item.artist, musicItem.artist);
-                    if (dist < distance) {
-                        distance = dist;
-                        minDistanceMusicItem = item;
-                        targetPlugin = plugin;
-                    }
-                }
-            }
-
-            if (distance === 0) {
-                break;
-            }
-        }
-        if (minDistanceMusicItem && targetPlugin) {
-            return minDistanceMusicItem as ICommon.SupportMediaItemBase[T];
-        }
-
-        return null;
-    }
-
 
     private patchMediaArtwork(track: Track) {
         // Bug: React native track player 在设置音频时，artwork不能为null，并且部分情况下artwork不能为ImageSource类型

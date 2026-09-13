@@ -14,7 +14,10 @@ import PanelHeader from "../base/panelHeader";
 
 interface IUserVariablesProps {
     title?: string;
-    onOk: (values: Record<string, string>, closePanel: () => void) => void;
+    onOk: (
+        values: Record<string, string>,
+        closePanel: () => void,
+    ) => void | Promise<void>;
     variables: IPlugin.IUserVariable[];
     initValues?: Record<string, string>;
     onCancel?: () => void;
@@ -41,7 +44,7 @@ export default function SetUserVariables(props: IUserVariablesProps) {
                             hidePanel();
                         }}
                         onOk={async () => {
-                            onOk(resultRef.current, hidePanel);
+                            await onOk(resultRef.current, hidePanel);
                         }}
                     />
                     <KeyboardAvoidingView
@@ -74,6 +77,7 @@ export default function SetUserVariables(props: IUserVariablesProps) {
                                             },
                                         ]}
                                         placeholder={it.hint}
+                                        secureTextEntry={it.type === "password"}
                                     />
                                 </ListItem>
                             ))}

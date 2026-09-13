@@ -188,7 +188,7 @@ export interface IPluginManager {
      * @param plugin - 要设置用户变量的插件实例
      * @param userVariables - 用户变量键值对
      */
-    setUserVariables(plugin: Plugin, userVariables: Record<string, string>): void;
+    setUserVariables(plugin: Plugin, userVariables: Record<string, string>): Promise<void>;
 
     /**
      * 获取插件的用户变量

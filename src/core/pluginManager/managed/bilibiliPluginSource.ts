@@ -2,6 +2,50 @@ export const BILIBILI_PLUGIN_SOURCE = "\"use strict\";\nObject.defineProperty(ex
 
 const BILIBILI_PATCHED_PLUGIN_SOURCE = BILIBILI_PLUGIN_SOURCE
     .replace(
+        "function formatMedia(result) {",
+        `function normalizeBilibiliArtworkUrl(value) {
+    if (typeof value !== "string" || !value) {
+        return undefined;
+    }
+    const normalized = value.startsWith("//") ? "https:" + value : value;
+    try {
+        const parsed = new URL(normalized);
+        const allowedHost = ["hdslb.com", "biliimg.com"]
+            .some(host => parsed.hostname === host || parsed.hostname.endsWith("." + host));
+        return parsed.protocol === "https:" &&
+            !parsed.username &&
+            !parsed.password &&
+            allowedHost
+            ? parsed.toString()
+            : undefined;
+    }
+    catch (_error) {
+        return undefined;
+    }
+}
+function formatMedia(result) {`,
+    )
+    .replace(
+        `artwork: ((_j = result.pic) === null || _j === void 0 ? void 0 : _j.startsWith("//"))
+            ? "http:".concat(result.pic)
+            : result.pic,`,
+        "artwork: normalizeBilibiliArtworkUrl(result.pic),",
+    )
+    .replace(
+        `return parsed.protocol === "https:" &&
+            !parsed.username &&
+            !parsed.password &&
+            Boolean(parsed.hostname);`,
+        `const hostname = parsed.hostname.toLowerCase();
+        const allowedHost = ["bilivideo.com", "bilivideo.cn", "hdslb.com"]
+            .some(host => hostname === host || hostname.endsWith("." + host)) ||
+            (hostname.startsWith("upos-") && hostname.endsWith(".akamaized.net"));
+        return parsed.protocol === "https:" &&
+            !parsed.username &&
+            !parsed.password &&
+            allowedHost;`,
+    )
+    .replace(
         "function durationToSec(duration) {",
         `async function getCidFromPagelist(bvid, aid) {
     const params = bvid ? { bvid } : { aid };

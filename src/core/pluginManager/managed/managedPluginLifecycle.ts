@@ -1,4 +1,4 @@
-import { compare, validate } from "compare-versions";
+import { validate } from "compare-versions";
 
 export interface ManagedPluginDescriptor {
     readonly platform: string;
@@ -22,6 +22,7 @@ export interface ManagedPluginOperations<TPlugin> {
     getVersion(plugin: TPlugin): unknown;
     getPath(plugin: TPlugin): string;
     getHash(plugin: TPlugin): string;
+    getSourceHash(source: string): string;
     isUsablePlugin(plugin: TPlugin): boolean;
     canRemoveFile(path: string): boolean;
 }
@@ -46,40 +47,6 @@ function assertDescriptor(descriptor: ManagedPluginDescriptor) {
     ) {
         throw new Error("Invalid managed plugin descriptor");
     }
-}
-
-function comparePlugins<TPlugin>(
-    left: TPlugin,
-    right: TPlugin,
-    operations: ManagedPluginOperations<TPlugin>,
-) {
-    const leftVersion = operations.getVersion(left);
-    const rightVersion = operations.getVersion(right);
-    const leftIsValid = isValidVersion(leftVersion);
-    const rightIsValid = isValidVersion(rightVersion);
-
-    if (leftIsValid !== rightIsValid) {
-        return leftIsValid ? -1 : 1;
-    }
-    if (leftIsValid && rightIsValid) {
-        const versionOrder = compare(leftVersion, rightVersion, ">")
-            ? -1
-            : compare(leftVersion, rightVersion, "<")
-                ? 1
-                : 0;
-        if (versionOrder !== 0) {
-            return versionOrder;
-        }
-    }
-
-    const leftPath = operations.getPath(left);
-    const rightPath = operations.getPath(right);
-    const pathOrder = leftPath < rightPath ? -1 : leftPath > rightPath ? 1 : 0;
-    const leftHash = operations.getHash(left);
-    const rightHash = operations.getHash(right);
-    return pathOrder !== 0
-        ? pathOrder
-        : leftHash < rightHash ? -1 : leftHash > rightHash ? 1 : 0;
 }
 
 function replacePlatformPlugins<TPlugin>(
@@ -130,30 +97,35 @@ export async function ensureManagedPlugin<TPlugin>(
     assertDescriptor(descriptor);
 
     const plugins = [...operations.listPlugins()];
-    const exactMatches = plugins
-        .filter(plugin => operations.getPlatform(plugin) === descriptor.platform)
-        .sort((left, right) => comparePlugins(left, right, operations));
-    const current = exactMatches[0];
-    const currentVersion = current && operations.getVersion(current);
+    const exactMatches = plugins.filter(
+        plugin => operations.getPlatform(plugin) === descriptor.platform,
+    );
+    const expectedHash = operations.getSourceHash(descriptor.source);
+    if (!expectedHash) {
+        throw new Error("Invalid managed plugin source hash");
+    }
+    const trustedCurrent = exactMatches.find(plugin =>
+        operations.getHash(plugin) === expectedHash &&
+        operations.getVersion(plugin) === descriptor.version,
+    );
+    const current = trustedCurrent ?? exactMatches[0];
 
-    if (
-        current &&
-        currentVersion &&
-        isValidVersion(currentVersion) &&
-        compare(currentVersion, descriptor.version, ">=")
-    ) {
+    if (trustedCurrent) {
         if (exactMatches.length === 1) {
-            return { status: "unchanged", plugin: current };
+            return { status: "unchanged", plugin: trustedCurrent };
         }
 
         operations.publishPlugins(replacePlatformPlugins(
             plugins,
             descriptor.platform,
-            current,
+            trustedCurrent,
             operations,
         ));
-        await removeFiles(exactMatches.slice(1), operations);
-        return { status: "reconciled", plugin: current };
+        await removeFiles(
+            exactMatches.filter(plugin => plugin !== trustedCurrent),
+            operations,
+        );
+        return { status: "reconciled", plugin: trustedCurrent };
     }
 
     const { stagingPath, finalPath } = operations.allocatePaths();

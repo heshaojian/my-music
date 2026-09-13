@@ -974,7 +974,7 @@ export class Plugin {
                     locale: i18n.getLanguage().locale,
                     appVersion,
                     getUserVariables: () =>
-                        _internalPluginMeta.getUserVariables(this.name),
+                        _internalPluginMeta.getUserVariables(this.name, this.hash),
                 });
 
                 // eslint-disable-next-line no-new-func

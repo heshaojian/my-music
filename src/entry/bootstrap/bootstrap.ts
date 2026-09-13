@@ -90,6 +90,7 @@ async function bootstrapImpl() {
     // 加载插件
     await PluginManager.setup();
     await ensureBundledManagedPlugins(PluginManager);
+    await PluginManager.hydrateSecureUserVariables();
     logger.mark("插件初始化完成");
     trace("插件初始化完成");
 

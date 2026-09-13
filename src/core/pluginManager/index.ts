@@ -12,6 +12,7 @@ import {
 import { removeAllMediaExtra } from "@/utils/mediaExtra";
 import axios from "axios";
 import { compare } from "compare-versions";
+import CryptoJs from "crypto-js";
 import EventEmitter from "eventemitter3";
 import { readAsStringAsync } from "expo-file-system";
 import { atom, getDefaultStore, useAtomValue } from "jotai";
@@ -41,6 +42,7 @@ import {
     ManagedPluginDescriptor,
     ManagedPluginResult,
 } from "./managed/managedPluginLifecycle";
+import { isBundledManagedPluginPlatform } from "./managed/ensureBundledManagedPlugins";
 
 const pluginsAtom = atom<Plugin[]>([]);
 const pluginCacheStore = getOrCreateMMKV("plugin.cache");
@@ -161,6 +163,7 @@ class PluginManager implements IPluginManager, IInjectable {
             }
 
             this.setPlugins(allPlugins);
+            await pluginMeta.prepareSecureStorage();
             // 异步初始化插件
 
             delay(10_000, true).then(async () => {
@@ -170,6 +173,9 @@ class PluginManager implements IPluginManager, IInjectable {
                     if (plugin.state === PluginState.Initializing) {
                         await plugin.ensureMounted();
                         this.updatePluginCache(plugin);
+                        await pluginMeta.hydrateSecureUserVariablesForPlugins([
+                            plugin,
+                        ]);
                     }
                 }
             });
@@ -183,6 +189,10 @@ class PluginManager implements IPluginManager, IInjectable {
         }
 
         Plugin.injectDependencies(this);
+    }
+
+    async hydrateSecureUserVariables() {
+        await pluginMeta.hydrateSecureUserVariablesForPlugins(this.getPlugins());
     }
 
     /**
@@ -208,6 +218,14 @@ class PluginManager implements IPluginManager, IInjectable {
 
         if (funcCode) {
             const plugin = new Plugin(funcCode, pluginPath);
+            if (isBundledManagedPluginPlatform(plugin.name)) {
+                return {
+                    success: false,
+                    message: "This plugin is securely managed by MyMusic",
+                    pluginName: plugin.name,
+                    pluginHash: plugin.hash,
+                };
+            }
             let allPlugins = [...this.getPlugins()];
 
             const _pluginIndex = allPlugins.findIndex(
@@ -278,7 +296,7 @@ class PluginManager implements IPluginManager, IInjectable {
     async ensureManagedPlugin(
         descriptor: ManagedPluginDescriptor,
     ): Promise<ManagedPluginResult<Plugin>> {
-        return ensureManagedPlugin(descriptor, {
+        const result = await ensureManagedPlugin(descriptor, {
             listPlugins: () => this.getPlugins(),
             allocatePaths: () => {
                 const id = nanoid();
@@ -300,11 +318,16 @@ class PluginManager implements IPluginManager, IInjectable {
             getVersion: plugin => plugin.instance.version,
             getPath: plugin => plugin.path,
             getHash: plugin => plugin.hash,
+            getSourceHash: source => CryptoJs.SHA256(source).toString(),
             isUsablePlugin: plugin =>
                 plugin.state === PluginState.Mounted && plugin.hash.length > 0,
             canRemoveFile: filePath =>
                 isOwnedPluginFilePath(filePath, pathConst.pluginPath),
         });
+        await pluginMeta.hydrateSecureUserVariablesForPlugins([
+            result.plugin,
+        ]);
+        return result;
     }
 
     /**
@@ -330,6 +353,15 @@ class PluginManager implements IPluginManager, IInjectable {
             ).data;
             if (funcCode) {
                 const plugin = new Plugin(funcCode, "");
+                if (isBundledManagedPluginPlatform(plugin.name)) {
+                    return {
+                        success: false,
+                        message: "This plugin is securely managed by MyMusic",
+                        pluginName: plugin.name,
+                        pluginHash: plugin.hash,
+                        pluginUrl: url,
+                    };
+                }
                 let allPlugins = [...this.getPlugins()];
                 const pluginIndex = allPlugins.findIndex(
                     p => p.hash === plugin.hash,
@@ -434,6 +466,13 @@ class PluginManager implements IPluginManager, IInjectable {
                 this.setPlugins(plugins);
                 // 防止其他重名
                 if (plugins.every(_ => _.name !== pluginName)) {
+                    try {
+                        await pluginMeta.removeUserVariables(pluginName);
+                    } catch (_error) {
+                        errorLog("Plugin credential cleanup failed", {
+                            platform: pluginName,
+                        });
+                    }
                     removeAllMediaExtra(pluginName);
                 }
             } catch {}
@@ -445,6 +484,9 @@ class PluginManager implements IPluginManager, IInjectable {
      * 同时清理媒体额外数据并删除插件文件
      */
     async uninstallAllPlugins() {
+        const pluginNames = Array.from(new Set(
+            this.getPlugins().map(plugin => plugin.name),
+        ));
         await Promise.all(
             this.getPlugins().map(async plugin => {
                 try {
@@ -455,6 +497,15 @@ class PluginManager implements IPluginManager, IInjectable {
             }),
         );
         this.setPlugins([]);
+        await Promise.all(pluginNames.map(async pluginName => {
+            try {
+                await pluginMeta.removeUserVariables(pluginName);
+            } catch (_error) {
+                errorLog("Plugin credential cleanup failed", {
+                    platform: pluginName,
+                });
+            }
+        }));
 
         /** 清除空余文件，异步做就可以了 */
         readDir(pathConst.pluginPath)
@@ -641,12 +692,17 @@ class PluginManager implements IPluginManager, IInjectable {
         ee.emit("order-updated");
     }
 
-    setUserVariables(plugin: Plugin, userVariables: Record<string, string>) {
-        pluginMeta.setUserVariables(plugin.name, userVariables);
+    async setUserVariables(plugin: Plugin, userVariables: Record<string, string>) {
+        await pluginMeta.setUserVariables(
+            plugin.name,
+            userVariables,
+            plugin.instance.userVariables,
+            plugin.hash,
+        );
     }
 
     getUserVariables(plugin: Plugin) {
-        return pluginMeta.getUserVariables(plugin.name);
+        return pluginMeta.getUserVariables(plugin.name, plugin.hash);
     }
 
     setAlternativePluginName(plugin: Plugin, alternativePluginName: string) {
