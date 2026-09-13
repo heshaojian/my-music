@@ -16,6 +16,9 @@ const createPlugin = (
     playData: unknown = { dash: { audio: audios } },
 ) => {
     const get = jest.fn(async (url: string) => {
+        if (url.includes("/x/player/pagelist")) {
+            return { data: { data: [{ cid: "456" }] } };
+        }
         if (url.includes("/x/player/playurl")) {
             return { data: { data: playData } };
         }
@@ -86,6 +89,39 @@ describe("managed Bilibili CDN selection", () => {
             url: primary,
             headers: { host: "primary.example.com" },
         });
+    });
+
+    it("recovers cid from Bilibili pagelist when search results omit it", async () => {
+        const audios = [{ bandwidth: 128000, baseUrl: primary, backupUrl: [backup] }];
+        const searchResultWithoutCid = {
+            ...mediaItem,
+            id: "BV123",
+            cid: undefined,
+        };
+        const { plugin, get } = createPlugin("ios", audios);
+
+        await expect(plugin.getMediaSource!(
+            searchResultWithoutCid,
+            "standard",
+        )).resolves.toMatchObject({
+            url: backup,
+        });
+        expect(get).toHaveBeenCalledWith(
+            "https://api.bilibili.com/x/player/pagelist",
+            expect.objectContaining({
+                params: { bvid: "BV123" },
+            }),
+        );
+        expect(get).not.toHaveBeenCalledWith(
+            "https://api.bilibili.com/x/web-interface/view",
+            expect.anything(),
+        );
+        expect(get).toHaveBeenCalledWith(
+            "https://api.bilibili.com/x/player/playurl",
+            expect.objectContaining({
+                params: expect.objectContaining({ cid: "456" }),
+            }),
+        );
     });
 
     it("supports snake-case Bilibili URL fields", async () => {

@@ -2,6 +2,34 @@ export const BILIBILI_PLUGIN_SOURCE = "\"use strict\";\nObject.defineProperty(ex
 
 const BILIBILI_PATCHED_PLUGIN_SOURCE = BILIBILI_PLUGIN_SOURCE
     .replace(
+        "function durationToSec(duration) {",
+        `async function getCidFromPagelist(bvid, aid) {
+    const params = bvid ? { bvid } : { aid };
+    try {
+        const pagelistRes = (await axios_1.default.get("https://api.bilibili.com/x/player/pagelist", {
+            headers,
+            params,
+        })).data;
+        const pages = pagelistRes && Array.isArray(pagelistRes.data)
+            ? pagelistRes.data
+            : [];
+        const firstPage = pages.find((page) => page && (typeof page.cid === "string" || typeof page.cid === "number"));
+        return firstPage ? firstPage.cid : undefined;
+    }
+    catch (_error) {
+        return undefined;
+    }
+}
+function durationToSec(duration) {`,
+    )
+    .replace(
+        "cid = (await getCid(musicItem.bvid, musicItem.aid)).data.cid;",
+        `cid = await getCidFromPagelist(musicItem.bvid, musicItem.aid);
+        if (!cid) {
+            cid = (await getCid(musicItem.bvid, musicItem.aid)).data.cid;
+        }`,
+    )
+    .replace(
         "version: \"0.3.1-mymusic.1\"",
         "version: \"0.3.2-mymusic.1\"",
     )
