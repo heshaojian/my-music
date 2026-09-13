@@ -226,4 +226,27 @@ describe("legacy direct media source integration", () => {
             platform: "udio",
         }, "standard")).resolves.toMatchObject({ url });
     });
+
+    it("preserves bounded provider metadata required by native playback", async () => {
+        const source = {
+            url: "https://r1---sn.example.googlevideo.com/videoplayback",
+            contentLength: 2_500_000,
+            formatId: 140,
+        };
+        const plugin = new Plugin(
+            () => ({
+                platform: "YouTube",
+                cacheControl: "no-store",
+                async getMediaSource() {
+                    return source;
+                },
+            }),
+            "managed-plugin://youtube",
+        );
+
+        await expect(plugin.methods.getMediaSource({
+            id: "video-1",
+            platform: "YouTube",
+        }, "standard")).resolves.toMatchObject(source);
+    });
 });

@@ -146,10 +146,16 @@ async function assertReachableMedia(source: any) {
     expect(parsed.protocol).toBe("https:");
     expect(parsed.username).toBe("");
     expect(parsed.password).toBe("");
+    const hasUserAgentHeader = Object.keys(source.headers ?? {}).some(
+        key => key.toLowerCase() === "user-agent",
+    );
 
     const response = await axios.get(source.url, {
         headers: {
             ...(source.headers ?? {}),
+            ...(source.userAgent && !hasUserAgentHeader
+                ? { "user-agent": source.userAgent }
+                : {}),
             Range: "bytes=0-1",
         },
         maxRedirects: 5,
@@ -193,7 +199,11 @@ liveDescribe("live managed provider compatibility", () => {
         const plugin = createPlugin(managedPlugin(YOUTUBE.platform));
         const result = await plugin.search!("Adele Hello", 1, "music");
         expect(rows(result).length).toBeGreaterThan(0);
-        await assertReachableMedia(await firstMediaSource(plugin, rows(result)));
+        const source = await firstMediaSource(plugin, rows(result));
+        const mediaUrl = new URL(source.url);
+        expect(mediaUrl.searchParams.get("clen")).toMatch(/^[1-9]\d*$/);
+        expect(mediaUrl.searchParams.get("itag")).toMatch(/^[1-9]\d*$/);
+        await assertReachableMedia(source);
     });
 
     it("searches and resolves reachable Audiomack audio", async () => {

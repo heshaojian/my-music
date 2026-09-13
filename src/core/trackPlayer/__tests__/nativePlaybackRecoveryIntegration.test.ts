@@ -1,4 +1,24 @@
-const mockEventListeners = new Map<string, (event: Record<string, unknown>) => Promise<void>>();
+const mockEventListeners = new Map<
+    string,
+    (event: Record<string, unknown>) => Promise<void>
+>();
+const mockPrepareIosGoogleVideoSource = jest.fn(
+    async ({
+        source,
+    }: {
+        source: IPlugin.IMediaSourceResult;
+        shouldAbort?: () => boolean;
+    }) =>
+        typeof source.url === "string" &&
+        source.url.includes("googlevideo.com") &&
+        source.url.includes("clen=")
+            ? {
+                ...source,
+                url: "file:///cache/mymusic-youtube/prepared.m4a",
+                headers: undefined,
+            }
+            : source,
+);
 
 jest.mock("react-native-reanimated", () => ({
     Easing: {
@@ -11,7 +31,10 @@ jest.mock("react-native-track-player", () => ({
     __esModule: true,
     default: {
         addEventListener: jest.fn(
-            (event: string, listener: (payload: Record<string, unknown>) => Promise<void>) => {
+            (
+                event: string,
+                listener: (payload: Record<string, unknown>) => Promise<void>,
+            ) => {
                 mockEventListeners.set(event, listener);
                 return { remove: jest.fn() };
             },
@@ -87,15 +110,24 @@ jest.mock("@/utils/network", () => ({
 
 jest.mock("@/utils/mediaUtils", () => ({
     getLocalPath: jest.fn(() => null),
-    isSameMediaItem: jest.fn((left, right) => Boolean(
-        left &&
-        right &&
-        left.id === right.id &&
-        left.platform === right.platform
-    )),
+    isSameMediaItem: jest.fn((left, right) =>
+        Boolean(
+            left &&
+                right &&
+                left.id === right.id &&
+                left.platform === right.platform,
+        ),
+    ),
 }));
 
 jest.mock("react-native-url-polyfill", () => ({ URL }));
+
+jest.mock("../iosGoogleVideoCache", () => ({
+    prepareIosGoogleVideoSource: (options: {
+        source: IPlugin.IMediaSourceResult;
+        shouldAbort?: () => boolean;
+    }) => mockPrepareIosGoogleVideoSource(options),
+}));
 
 jest.mock("@/core/i18n", () => ({
     __esModule: true,
@@ -114,14 +146,13 @@ describe("TrackPlayer native playback recovery integration", () => {
             artwork: "cover.jpg",
         } as IMusic.IMusicItem;
         const directSource = "https://media.yinyuetai.com/dead.m4a";
-        const fallbackSource = "https://rr1.googlevideo.com/audio.m3u8";
+        const fallbackSource =
+            "https://rr1.googlevideo.com/audio.m4a?clen=1000";
         const originalProvider = {
             name: "音悦台",
             methods: {
                 getMediaSource: jest.fn(async (item: IMusic.IMusicItem) =>
-                    item.id === "initial-fallback"
-                        ? null
-                        : { url: directSource },
+                    item.id === "initial-fallback" ? null : { url: directSource },
                 ),
             },
         };
@@ -129,19 +160,24 @@ describe("TrackPlayer native playback recovery integration", () => {
             name: "Youtube",
             methods: {
                 search: jest.fn(async (query: string) => ({
-                    data: [{
-                        id: query.includes("Skyfall")
-                            ? "youtube-skyfall"
-                            : "youtube-hello",
-                        platform: "Youtube",
-                        title: query.includes("Skyfall") ? "Skyfall" : "Hello",
-                        artist: "Adele",
-                    }],
+                    data: [
+                        {
+                            id: query.includes("Skyfall")
+                                ? "youtube-skyfall"
+                                : "youtube-hello",
+                            platform: "Youtube",
+                            title: query.includes("Skyfall")
+                                ? "Skyfall"
+                                : "Hello",
+                            artist: "Adele",
+                        },
+                    ],
                 })),
                 getMediaSource: jest.fn(async (item: IMusic.IMusicItem) => ({
-                    url: item.id === "youtube-skyfall"
-                        ? "https://rr1.googlevideo.com/skyfall.m4a"
-                        : fallbackSource,
+                    url:
+                        item.id === "youtube-skyfall"
+                            ? "https://rr1.googlevideo.com/skyfall.m4a"
+                            : fallbackSource,
                     headers: { Referer: "https://www.youtube.com/" },
                 })),
             },
@@ -150,12 +186,14 @@ describe("TrackPlayer native playback recovery integration", () => {
             name: "Audiomack",
             methods: {
                 search: jest.fn(async () => ({
-                    data: [{
-                        id: "audiomack-skyfall",
-                        platform: "Audiomack",
-                        title: "Skyfall",
-                        artist: "Adele",
-                    }],
+                    data: [
+                        {
+                            id: "audiomack-skyfall",
+                            platform: "Audiomack",
+                            title: "Skyfall",
+                            artist: "Adele",
+                        },
+                    ],
                 })),
                 getMediaSource: jest.fn(async () => ({
                     url: "https://music.audiomack.com/skyfall.m4a",
@@ -200,13 +238,20 @@ describe("TrackPlayer native playback recovery integration", () => {
         await trackPlayer.play(originalTrack);
 
         const { errorLog } = jest.requireMock("@/utils/log");
-        const nativeTrackPlayer = jest.requireMock("react-native-track-player").default;
+        const nativeTrackPlayer = jest.requireMock(
+            "react-native-track-player",
+        ).default;
         const persistStatus = jest.requireMock("@/utils/persistStatus").default;
-        expect(errorLog).not.toHaveBeenCalledWith("播放失败", expect.anything());
-        expect(trackPlayer.currentMusic).toEqual(expect.objectContaining({
-            id: originalTrack.id,
-            platform: originalTrack.platform,
-        }));
+        expect(errorLog).not.toHaveBeenCalledWith(
+            "播放失败",
+            expect.anything(),
+        );
+        expect(trackPlayer.currentMusic).toEqual(
+            expect.objectContaining({
+                id: originalTrack.id,
+                platform: originalTrack.platform,
+            }),
+        );
         expect(originalProvider.methods.getMediaSource).toHaveBeenCalled();
         expect(nativeTrackPlayer.setQueue).toHaveBeenLastCalledWith([
             expect.objectContaining({
@@ -235,11 +280,15 @@ describe("TrackPlayer native playback recovery integration", () => {
                 id: originalTrack.id,
                 platform: originalTrack.platform,
                 title: originalTrack.title,
-                url: fallbackSource,
-                type: "hls",
+                url: "file:///cache/mymusic-youtube/prepared.m4a",
             }),
             expect.any(Object),
         ]);
+        expect(mockPrepareIosGoogleVideoSource).toHaveBeenCalledWith({
+            source: expect.objectContaining({ url: fallbackSource }),
+            mediaId: originalTrack.id,
+            shouldAbort: expect.any(Function),
+        });
         expect(nativeTrackPlayer.seekTo).toHaveBeenCalledWith(27);
         expect(persistStatus.set).toHaveBeenCalledWith(
             "music.musicItem",
@@ -251,6 +300,12 @@ describe("TrackPlayer native playback recovery integration", () => {
         expect(persistStatus.set).not.toHaveBeenCalledWith(
             "music.musicItem",
             expect.objectContaining({ url: fallbackSource }),
+        );
+        expect(persistStatus.set).not.toHaveBeenCalledWith(
+            "music.musicItem",
+            expect.objectContaining({
+                url: "file:///cache/mymusic-youtube/prepared.m4a",
+            }),
         );
 
         await playbackErrorListener?.({

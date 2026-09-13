@@ -53,7 +53,7 @@ describe("bundled managed plugin bootstrap", () => {
         )).toEqual([
             ["bilibili", "0.3.2-mymusic.1"],
             ["Audiomack", "0.0.3-mymusic.1"],
-            ["Youtube", "0.0.3-mymusic.1"],
+            ["Youtube", "0.0.3-mymusic.2"],
             ["歌词网", "0.0.1-mymusic.1"],
             ["歌词千寻", "0.0.1-mymusic.1"],
             ["Navidrome", "0.0.1-mymusic.1"],

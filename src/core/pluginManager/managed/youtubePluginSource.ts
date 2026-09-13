@@ -8,17 +8,16 @@ const HOMEPAGE_URL = "https://www.youtube.com/";
 const SEARCH_URL = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false";
 const PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
 const BROWSER_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
-const PLAYER_CLIENT_VERSION = "1.65.10";
-const PLAYER_USER_AGENT = "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip";
+const PLAYER_CLIENT_VERSION = "1.02";
+const PLAYER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const IS_IOS = typeof env === "object" && env && env.os === "ios";
 const PLAYER_CLIENT = Object.freeze({
-    clientName: "ANDROID_VR",
+    clientName: "VISIONOS",
     clientVersion: PLAYER_CLIENT_VERSION,
-    deviceMake: "Oculus",
-    deviceModel: "Quest 3",
-    androidSdkVersion: 32,
-    osName: "Android",
-    osVersion: "12L",
+    deviceMake: "Apple",
+    deviceModel: "RealityDevice17,1",
+    osName: "visionOS",
+    osVersion: "26.5.23O471",
     hl: "en",
     timeZone: "UTC",
     utcOffsetMinutes: 0,
@@ -29,6 +28,7 @@ const QUALITY_BITRATES = Object.freeze({
     high: 192000,
     super: 320000,
 });
+const MAX_MEDIA_BYTES = 64 * 1024 * 1024;
 
 function firstRunText(value) {
     const runs = value && Array.isArray(value.runs) ? value.runs : [];
@@ -229,7 +229,7 @@ async function requestPlayer(videoId, visitor) {
     const response = await axios_1.default.post(PLAYER_URL, body, {
         headers: {
             "Content-Type": "application/json",
-            "X-Youtube-Client-Name": "28",
+            "X-Youtube-Client-Name": "101",
             "X-Youtube-Client-Version": PLAYER_CLIENT_VERSION,
             "X-Goog-Visitor-Id": visitor,
             Origin: HOMEPAGE_URL.slice(0, -1),
@@ -386,6 +386,19 @@ function getActualQuality(format) {
     })[0];
 }
 
+function getFormatMetadata(format) {
+    const contentLength = Number(format && format.contentLength);
+    const formatId = Number(format && format.itag);
+    return Number.isSafeInteger(contentLength) &&
+        contentLength > 0 &&
+        contentLength <= MAX_MEDIA_BYTES &&
+        Number.isSafeInteger(formatId) &&
+        formatId > 0 &&
+        formatId <= 9999
+        ? { contentLength, formatId }
+        : null;
+}
+
 async function getMediaSource(musicItem, quality) {
     if (!musicItem || !isValidVideoId(musicItem.id)) {
         return null;
@@ -398,9 +411,11 @@ async function getMediaSource(musicItem, quality) {
         const response = await requestPlayer(musicItem.id, visitor);
         const selected = selectFormat(response, quality);
         if (selected) {
+            const formatMetadata = getFormatMetadata(selected);
             const source = {
                 url: selected.url,
                 headers: { "user-agent": PLAYER_USER_AGENT },
+                ...(formatMetadata || {}),
             };
             const actualQuality = getActualQuality(selected);
             return actualQuality
@@ -419,7 +434,7 @@ async function getMediaSource(musicItem, quality) {
 module.exports = {
     platform: "Youtube",
     author: "MyMusic",
-    version: "0.0.3-mymusic.1",
+    version: "0.0.3-mymusic.2",
     supportedSearchType: ["music"],
     cacheControl: "no-store",
     search,
@@ -429,7 +444,7 @@ module.exports = {
 
 export const YOUTUBE_MANAGED_PLUGIN = {
     platform: "Youtube",
-    version: "0.0.3-mymusic.1",
+    version: "0.0.3-mymusic.2",
     source: YOUTUBE_PLUGIN_SOURCE,
 } as const;
 

@@ -41,9 +41,10 @@ type YouTubePlugin = {
 };
 
 const VIDEO_ID = "YQHsXMglC9A";
-const PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+const PLAYER_URL =
+    "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
 const MEDIA_URL =
-    "https://rr1---sn-test.googlevideo.com/videoplayback?id=public&expire=1";
+    "https://rr1---sn-test.googlevideo.com/videoplayback?id=public&expire=1&itag=140&clen=1000";
 
 function homepage(visitor = "visitor-A") {
     return `<html><script>ytcfg.set({"VISITOR_DATA":"${visitor}"});</script></html>`;
@@ -109,11 +110,11 @@ describe("managed YouTube playback", () => {
 
         expect(YOUTUBE_MANAGED_PLUGIN).toMatchObject({
             platform: "Youtube",
-            version: "0.0.3-mymusic.1",
+            version: "0.0.3-mymusic.2",
         });
         expect(plugin).toMatchObject({
             platform: "Youtube",
-            version: "0.0.3-mymusic.1",
+            version: "0.0.3-mymusic.2",
             cacheControl: "no-store",
             supportedSearchType: ["music"],
             search: expect.any(Function),
@@ -132,20 +133,32 @@ describe("managed YouTube playback", () => {
                 twoColumnSearchResultsRenderer: {
                     primaryContents: {
                         sectionListRenderer: {
-                            contents: [{
-                                itemSectionRenderer: {
-                                    contents: [{
-                                        videoRenderer: {
-                                            videoId: VIDEO_ID,
-                                            title: { runs: [{ text: "Hello" }] },
-                                            ownerText: { runs: [{ text: "Adele" }] },
-                                            thumbnail: {
-                                                thumbnails: [{ url: "https://img.example/cover.jpg" }],
+                            contents: [
+                                {
+                                    itemSectionRenderer: {
+                                        contents: [
+                                            {
+                                                videoRenderer: {
+                                                    videoId: VIDEO_ID,
+                                                    title: {
+                                                        runs: [{ text: "Hello" }],
+                                                    },
+                                                    ownerText: {
+                                                        runs: [{ text: "Adele" }],
+                                                    },
+                                                    thumbnail: {
+                                                        thumbnails: [
+                                                            {
+                                                                url: "https://img.example/cover.jpg",
+                                                            },
+                                                        ],
+                                                    },
+                                                },
                                             },
-                                        },
-                                    }],
+                                        ],
+                                    },
                                 },
-                            }],
+                            ],
                         },
                     },
                 },
@@ -156,15 +169,19 @@ describe("managed YouTube playback", () => {
         }));
         const { plugin } = createPlugin({ post });
 
-        await expect(plugin.search("Adele Hello", 1, "music")).resolves.toEqual({
-            isEnd: true,
-            data: [{
-                id: VIDEO_ID,
-                title: "Hello",
-                artist: "Adele",
-                artwork: "https://img.example/cover.jpg",
-            }],
-        });
+        await expect(plugin.search("Adele Hello", 1, "music")).resolves.toEqual(
+            {
+                isEnd: true,
+                data: [
+                    {
+                        id: VIDEO_ID,
+                        title: "Hello",
+                        artist: "Adele",
+                        artwork: "https://img.example/cover.jpg",
+                    },
+                ],
+            },
+        );
         expect(post).toHaveBeenCalledWith(
             "https://www.youtube.com/youtubei/v1/search?prettyPrint=false",
             expect.objectContaining({ query: "Adele Hello" }),
@@ -175,7 +192,9 @@ describe("managed YouTube playback", () => {
     it("leaves non-music search unsupported without networking", async () => {
         const { plugin, get, post } = createPlugin();
 
-        await expect(plugin.search("Adele", 1, "album")).resolves.toBeUndefined();
+        await expect(
+            plugin.search("Adele", 1, "album"),
+        ).resolves.toBeUndefined();
         expect(get).not.toHaveBeenCalled();
         expect(post).not.toHaveBeenCalled();
     });
@@ -190,7 +209,9 @@ describe("managed YouTube playback", () => {
     ])("rejects invalid video id %# before networking", async id => {
         const { plugin, get, post } = createPlugin();
 
-        await expect(plugin.getMediaSource({ id }, "standard")).resolves.toBeNull();
+        await expect(
+            plugin.getMediaSource({ id }, "standard"),
+        ).resolves.toBeNull();
         expect(get).not.toHaveBeenCalled();
         expect(post).not.toHaveBeenCalled();
     });
@@ -198,14 +219,17 @@ describe("managed YouTube playback", () => {
     it("bootstraps an anonymous session and sends the verified player profile", async () => {
         const { plugin, get, post } = createPlugin();
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toEqual({
-                url: MEDIA_URL,
-                headers: expect.objectContaining({
-                    "user-agent": expect.stringContaining("youtube.vr.oculus/1.65.10"),
-                }),
-                quality: "standard",
-            });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toEqual({
+            url: MEDIA_URL,
+            headers: expect.objectContaining({
+                "user-agent": expect.stringContaining(
+                    "Macintosh; Intel Mac OS X 15_7_3",
+                ),
+            }),
+            quality: "standard",
+        });
         expect(get).toHaveBeenCalledWith(
             "https://www.youtube.com/",
             expect.objectContaining({
@@ -224,11 +248,11 @@ describe("managed YouTube playback", () => {
                 racyCheckOk: true,
                 context: {
                     client: expect.objectContaining({
-                        clientName: "ANDROID_VR",
-                        clientVersion: "1.65.10",
-                        deviceMake: "Oculus",
-                        deviceModel: "Quest 3",
-                        androidSdkVersion: 32,
+                        clientName: "VISIONOS",
+                        clientVersion: "1.02",
+                        deviceMake: "Apple",
+                        deviceModel: "RealityDevice17,1",
+                        osName: "visionOS",
                     }),
                 },
             }),
@@ -236,13 +260,34 @@ describe("managed YouTube playback", () => {
                 timeout: 10000,
                 withCredentials: true,
                 headers: expect.objectContaining({
-                    "X-Youtube-Client-Name": "28",
-                    "X-Youtube-Client-Version": "1.65.10",
+                    "X-Youtube-Client-Name": "101",
+                    "X-Youtube-Client-Version": "1.02",
                     "X-Goog-Visitor-Id": "visitor-A",
                     Origin: "https://www.youtube.com",
                 }),
             }),
         );
+    });
+
+    it("preserves bounded format metadata when the signed URL omits it", async () => {
+        const metadataUrl = "https://rr1.googlevideo.com/videoplayback?id=metadata-only";
+        const post = mockPost(async () => ({
+            data: playable([
+                audioFormat(metadataUrl, 128000, {
+                    contentLength: "2500000",
+                    itag: 140,
+                }),
+            ]),
+        }));
+        const { plugin } = createPlugin({ post });
+
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toMatchObject({
+            url: metadataUrl,
+            contentLength: 2500000,
+            formatId: 140,
+        });
     });
 
     it("reuses an in-memory session across resolutions", async () => {
@@ -266,8 +311,10 @@ describe("managed YouTube playback", () => {
         await plugin.getMediaSource({ id: "dQw4w9WgXcQ" }, "standard");
 
         expect(get).toHaveBeenCalledTimes(2);
-        expect((post.mock.calls[1][2] as { headers: Record<string, string> }).headers)
-            .toMatchObject({ "X-Goog-Visitor-Id": "visitor-B" });
+        expect(
+            (post.mock.calls[1][2] as { headers: Record<string, string> })
+                .headers,
+        ).toMatchObject({ "X-Goog-Visitor-Id": "visitor-B" });
     });
 
     it("single-flights concurrent session initialization", async () => {
@@ -294,34 +341,44 @@ describe("managed YouTube playback", () => {
             .mockResolvedValueOnce({ data: homepage("visitor-B") });
         const { plugin } = createPlugin({ get });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .rejects.toThrow("offline");
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toMatchObject({ url: MEDIA_URL });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).rejects.toThrow("offline");
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toMatchObject({ url: MEDIA_URL });
         expect(get).toHaveBeenCalledTimes(2);
     });
 
     it.each([
         { playabilityStatus: { status: "LOGIN_REQUIRED", reason: "Sign in" } },
         { playabilityStatus: { status: "OK" } },
-    ])("refreshes the anonymous session exactly once for a recoverable response", async first => {
-        const get = mockGet()
-            .mockResolvedValueOnce({ data: homepage("visitor-A") })
-            .mockResolvedValueOnce({ data: homepage("visitor-B") });
-        const post = mockPost()
-            .mockResolvedValueOnce({ data: first })
-            .mockResolvedValueOnce({ data: playable([audioFormat()]) });
-        const { plugin } = createPlugin({ get, post });
+    ])(
+        "refreshes the anonymous session exactly once for a recoverable response",
+        async first => {
+            const get = mockGet()
+                .mockResolvedValueOnce({ data: homepage("visitor-A") })
+                .mockResolvedValueOnce({ data: homepage("visitor-B") });
+            const post = mockPost()
+                .mockResolvedValueOnce({ data: first })
+                .mockResolvedValueOnce({ data: playable([audioFormat()]) });
+            const { plugin } = createPlugin({ get, post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "high"))
-            .resolves.toMatchObject({ url: MEDIA_URL });
-        expect(get).toHaveBeenCalledTimes(2);
-        expect(post).toHaveBeenCalledTimes(2);
-        expect((post.mock.calls[0][2] as { headers: Record<string, string> }).headers)
-            .toMatchObject({ "X-Goog-Visitor-Id": "visitor-A" });
-        expect((post.mock.calls[1][2] as { headers: Record<string, string> }).headers)
-            .toMatchObject({ "X-Goog-Visitor-Id": "visitor-B" });
-    });
+            await expect(
+                plugin.getMediaSource({ id: VIDEO_ID }, "high"),
+            ).resolves.toMatchObject({ url: MEDIA_URL });
+            expect(get).toHaveBeenCalledTimes(2);
+            expect(post).toHaveBeenCalledTimes(2);
+            expect(
+                (post.mock.calls[0][2] as { headers: Record<string, string> })
+                    .headers,
+            ).toMatchObject({ "X-Goog-Visitor-Id": "visitor-A" });
+            expect(
+                (post.mock.calls[1][2] as { headers: Record<string, string> })
+                    .headers,
+            ).toMatchObject({ "X-Goog-Visitor-Id": "visitor-B" });
+        },
+    );
 
     it("stops after one refresh", async () => {
         const get = mockGet()
@@ -333,26 +390,30 @@ describe("managed YouTube playback", () => {
         const post = mockPost(async () => ({ data: rejected }));
         const { plugin } = createPlugin({ get, post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toBeNull();
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toBeNull();
         expect(get).toHaveBeenCalledTimes(2);
         expect(post).toHaveBeenCalledTimes(2);
     });
 
-    it.each(["UNPLAYABLE", "AGE_CHECK_REQUIRED", "CONTENT_CHECK_REQUIRED", "ERROR"])(
-        "does not refresh terminal status %s",
-        async status => {
-            const post = mockPost(async () => ({
-                data: { playabilityStatus: { status } },
-            }));
-            const { plugin, get } = createPlugin({ post });
+    it.each([
+        "UNPLAYABLE",
+        "AGE_CHECK_REQUIRED",
+        "CONTENT_CHECK_REQUIRED",
+        "ERROR",
+    ])("does not refresh terminal status %s", async status => {
+        const post = mockPost(async () => ({
+            data: { playabilityStatus: { status } },
+        }));
+        const { plugin, get } = createPlugin({ post });
 
-            await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-                .resolves.toBeNull();
-            expect(get).toHaveBeenCalledTimes(1);
-            expect(post).toHaveBeenCalledTimes(1);
-        },
-    );
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toBeNull();
+        expect(get).toHaveBeenCalledTimes(1);
+        expect(post).toHaveBeenCalledTimes(1);
+    });
 
     it("prefers direct audio-only formats without mutating provider arrays", async () => {
         const progressive = {
@@ -369,8 +430,9 @@ describe("managed YouTube playback", () => {
         }));
         const { plugin } = createPlugin({ post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toMatchObject({ url: MEDIA_URL });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toMatchObject({ url: MEDIA_URL });
         expect({ adaptive, formats }).toEqual(original);
     });
 
@@ -386,8 +448,9 @@ describe("managed YouTube playback", () => {
         }));
         const { plugin } = createPlugin({ post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "super"))
-            .resolves.toMatchObject({ url: MEDIA_URL });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "super"),
+        ).resolves.toMatchObject({ url: MEDIA_URL });
     });
 
     it("selects AAC in MP4 on iOS even when WebM Opus is nearer the requested bitrate", async () => {
@@ -403,28 +466,35 @@ describe("managed YouTube playback", () => {
         }));
         const { plugin } = createPlugin({ post, os: "ios" });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "high"))
-            .resolves.toMatchObject({ url: aacUrl });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "high"),
+        ).resolves.toMatchObject({ url: aacUrl });
     });
 
     it("falls back to progressive MP4 with AAC on iOS when adaptive audio is WebM-only", async () => {
         const progressiveUrl = "https://rr1.googlevideo.com/progressive-aac";
         const post = mockPost(async () => ({
-            data: playable([
-                audioFormat("https://rr1.googlevideo.com/opus", 128000, {
-                    mimeType: "audio/webm; codecs=\"opus\"",
-                }),
-            ], [{
-                url: progressiveUrl,
-                bitrate: 256000,
-                mimeType: "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"",
-                audioQuality: "AUDIO_QUALITY_MEDIUM",
-            }]),
+            data: playable(
+                [
+                    audioFormat("https://rr1.googlevideo.com/opus", 128000, {
+                        mimeType: "audio/webm; codecs=\"opus\"",
+                    }),
+                ],
+                [
+                    {
+                        url: progressiveUrl,
+                        bitrate: 256000,
+                        mimeType: "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"",
+                        audioQuality: "AUDIO_QUALITY_MEDIUM",
+                    },
+                ],
+            ),
         }));
         const { plugin } = createPlugin({ post, os: "ios" });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toMatchObject({ url: progressiveUrl });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toMatchObject({ url: progressiveUrl });
     });
 
     it("returns no source on iOS when only WebM Opus is available", async () => {
@@ -437,8 +507,9 @@ describe("managed YouTube playback", () => {
         }));
         const { plugin } = createPlugin({ post, os: "ios" });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toBeNull();
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toBeNull();
     });
 
     it("retains WebM Opus playback on Android", async () => {
@@ -451,8 +522,9 @@ describe("managed YouTube playback", () => {
         }));
         const { plugin } = createPlugin({ post, os: "android" });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toMatchObject({ url: MEDIA_URL });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toMatchObject({ url: MEDIA_URL });
     });
 
     it.each([
@@ -460,19 +532,24 @@ describe("managed YouTube playback", () => {
         ["standard", 128000],
         ["high", 192000],
         ["super", 320000],
-    ] as const)("selects the nearest bitrate for %s", async (quality, bitrate) => {
-        const candidates = [320000, 64000, 192000, 128000].map(value =>
-            audioFormat(`https://rr1.googlevideo.com/${value}`, value));
-        const post = mockPost(async () => ({
-            data: playable(candidates),
-        }));
-        const { plugin } = createPlugin({ post });
+    ] as const)(
+        "selects the nearest bitrate for %s",
+        async (quality, bitrate) => {
+            const candidates = [320000, 64000, 192000, 128000].map(value =>
+                audioFormat(`https://rr1.googlevideo.com/${value}`, value),
+            );
+            const post = mockPost(async () => ({
+                data: playable(candidates),
+            }));
+            const { plugin } = createPlugin({ post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, quality))
-            .resolves.toMatchObject({
+            await expect(
+                plugin.getMediaSource({ id: VIDEO_ID }, quality),
+            ).resolves.toMatchObject({
                 url: `https://rr1.googlevideo.com/${bitrate}`,
             });
-    });
+        },
+    );
 
     it("breaks equal-distance bitrate ties toward the lower bitrate", async () => {
         const post = mockPost(async () => ({
@@ -483,8 +560,9 @@ describe("managed YouTube playback", () => {
         }));
         const { plugin } = createPlugin({ post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toMatchObject({ url: "https://rr1.googlevideo.com/96000" });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toMatchObject({ url: "https://rr1.googlevideo.com/96000" });
     });
 
     it.each(["low", "standard", "high", "super"] as const)(
@@ -492,8 +570,9 @@ describe("managed YouTube playback", () => {
         async quality => {
             const { plugin } = createPlugin();
 
-            await expect(plugin.getMediaSource({ id: VIDEO_ID }, quality))
-                .resolves.toMatchObject({ url: MEDIA_URL });
+            await expect(
+                plugin.getMediaSource({ id: VIDEO_ID }, quality),
+            ).resolves.toMatchObject({ url: MEDIA_URL });
         },
     );
 
@@ -503,20 +582,31 @@ describe("managed YouTube playback", () => {
         {},
         { playabilityStatus: { status: "OK" }, streamingData: null },
         playable([], []),
-        playable([{ signatureCipher: "secret", mimeType: "audio/mp4", bitrate: 1 }]),
+        playable([
+            { signatureCipher: "secret", mimeType: "audio/mp4", bitrate: 1 },
+        ]),
         playable([{ url: MEDIA_URL, mimeType: "video/mp4", bitrate: 1 }]),
-        playable([], [{
-            url: MEDIA_URL,
-            mimeType: "video/mp4; codecs=\"avc1.42001E, vp9\"",
-            bitrate: 500000,
-        }]),
-    ])("returns no source for malformed or non-direct response %#", async response => {
-        const post = mockPost(async () => ({ data: response }));
-        const { plugin } = createPlugin({ post });
+        playable(
+            [],
+            [
+                {
+                    url: MEDIA_URL,
+                    mimeType: "video/mp4; codecs=\"avc1.42001E, vp9\"",
+                    bitrate: 500000,
+                },
+            ],
+        ),
+    ])(
+        "returns no source for malformed or non-direct response %#",
+        async response => {
+            const post = mockPost(async () => ({ data: response }));
+            const { plugin } = createPlugin({ post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toBeNull();
-    });
+            await expect(
+                plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+            ).resolves.toBeNull();
+        },
+    );
 
     it.each([
         "http://rr1.googlevideo.com/audio",
@@ -537,8 +627,9 @@ describe("managed YouTube playback", () => {
         }));
         const { plugin } = createPlugin({ post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toBeNull();
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toBeNull();
     });
 
     it("rejects invalid or excessively large visitor data", async () => {
@@ -547,10 +638,12 @@ describe("managed YouTube playback", () => {
             .mockResolvedValueOnce({ data: homepage("a".repeat(1025)) });
         const { plugin } = createPlugin({ get });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toBeNull();
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toBeNull();
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toBeNull();
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toBeNull();
         expect(get).toHaveBeenCalledTimes(2);
     });
 
@@ -558,8 +651,9 @@ describe("managed YouTube playback", () => {
         const get = mockGet(async () => ({ data: homepage("a".repeat(520)) }));
         const { plugin, post } = createPlugin({ get });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "standard"))
-            .resolves.toMatchObject({ url: MEDIA_URL });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "standard"),
+        ).resolves.toMatchObject({ url: MEDIA_URL });
         expect(post).toHaveBeenCalledTimes(1);
     });
 
@@ -567,26 +661,32 @@ describe("managed YouTube playback", () => {
         ["AUDIO_QUALITY_LOW", "low"],
         ["AUDIO_QUALITY_MEDIUM", "standard"],
         ["AUDIO_QUALITY_HIGH", "high"],
-    ] as const)("reports actual provider quality %s as %s", async (
-        audioQuality,
-        expectedQuality,
-    ) => {
-        const post = mockPost(async () => ({
-            data: playable([audioFormat(MEDIA_URL, 999999, { audioQuality })]),
-        }));
-        const { plugin } = createPlugin({ post });
+    ] as const)(
+        "reports actual provider quality %s as %s",
+        async (audioQuality, expectedQuality) => {
+            const post = mockPost(async () => ({
+                data: playable([
+                    audioFormat(MEDIA_URL, 999999, { audioQuality }),
+                ]),
+            }));
+            const { plugin } = createPlugin({ post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "super"))
-            .resolves.toMatchObject({ quality: expectedQuality });
-    });
+            await expect(
+                plugin.getMediaSource({ id: VIDEO_ID }, "super"),
+            ).resolves.toMatchObject({ quality: expectedQuality });
+        },
+    );
 
     it("reports bitrate-nearest quality when provider quality is unavailable", async () => {
-        const format = audioFormat(MEDIA_URL, 120000, { audioQuality: undefined });
+        const format = audioFormat(MEDIA_URL, 120000, {
+            audioQuality: undefined,
+        });
         const post = mockPost(async () => ({ data: playable([format]) }));
         const { plugin } = createPlugin({ post });
 
-        await expect(plugin.getMediaSource({ id: VIDEO_ID }, "super"))
-            .resolves.toMatchObject({ quality: "standard" });
+        await expect(
+            plugin.getMediaSource({ id: VIDEO_ID }, "super"),
+        ).resolves.toMatchObject({ quality: "standard" });
     });
 
     it("omits actual quality when provider metadata is not meaningful", async () => {

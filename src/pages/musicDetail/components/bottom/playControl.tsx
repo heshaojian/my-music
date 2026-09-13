@@ -1,7 +1,7 @@
 import repeatModeConst from "@/constants/repeatModeConst";
 import rpx from "@/utils/rpx";
 import React from "react";
-import { InteractionManager, StyleSheet, View } from "react-native";
+import { InteractionManager, Pressable, StyleSheet, View } from "react-native";
 
 import Icon from "@/components/base/icon.tsx";
 import { showPanel } from "@/components/panels/usePanel";
@@ -48,18 +48,25 @@ export default function () {
                         TrackPlayer.skipToPrevious();
                     }}
                 />
-                <Icon
-                    color={"white"}
-                    name={musicIsPaused(musicState) ? "play" : "pause"}
-                    size={rpx(96)}
+                <Pressable
+                    accessibilityRole={"button"}
+                    accessibilityLabel={
+                        musicIsPaused(musicState) ? "Play" : "Pause"
+                    }
                     onPress={() => {
                         if (musicIsPaused(musicState)) {
                             TrackPlayer.play();
                         } else {
                             TrackPlayer.pause();
                         }
-                    }}
-                />
+                    }}>
+                    <Icon
+                        color={"white"}
+                        name={musicIsPaused(musicState) ? "play" : "pause"}
+                        pointerEvents={"none"}
+                        size={rpx(96)}
+                    />
+                </Pressable>
                 <Icon
                     color={"white"}
                     name={"skip-right"}

@@ -62,6 +62,18 @@ axios.interceptors.response.use((response) => {
 
 const sha256 = CryptoJs.SHA256;
 
+const MAX_PROVIDER_MEDIA_BYTES = 64 * 1024 * 1024;
+const MAX_PROVIDER_FORMAT_ID = 9_999;
+
+function getBoundedPositiveInteger(value: unknown, maximum: number) {
+    return typeof value === "number" &&
+        Number.isSafeInteger(value) &&
+        value > 0 &&
+        value <= maximum
+        ? value
+        : undefined;
+}
+
 const deprecatedCookieManager = {
     get: notImplementedFunction,
     set: notImplementedFunction,
@@ -316,6 +328,14 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 userAgent:
                     pluginSource?.userAgent ?? headers?.["user-agent"],
                 quality: pluginSource?.quality ?? quality,
+                contentLength: getBoundedPositiveInteger(
+                    pluginSource?.contentLength,
+                    MAX_PROVIDER_MEDIA_BYTES,
+                ),
+                formatId: getBoundedPositiveInteger(
+                    pluginSource?.formatId,
+                    MAX_PROVIDER_FORMAT_ID,
+                ),
             } as IPlugin.IMediaSourceResult;
             const authFormattedResult = formatAuthUrl(result.url!);
             if (authFormattedResult.auth) {

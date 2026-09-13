@@ -7,6 +7,10 @@ declare namespace IPlugin {
         userAgent?: string;
         /** 音质 */
         quality?: IMusic.IQualityKey;
+        /** Optional bounded media length supplied by a provider. */
+        contentLength?: number;
+        /** Optional numeric provider format identifier. */
+        formatId?: number;
     }
 
     export interface ISearchResult<T extends ICommon.SupportMediaType> {
