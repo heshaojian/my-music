@@ -12,7 +12,7 @@ jest.mock("@/utils/log", () => ({ errorLog: jest.fn() }));
 
 const descriptor = {
     platform: "bilibili",
-    version: "0.3.2-mymusic.1",
+    version: "0.3.3-mymusic.1",
     source: "plugin source",
 } as const;
 
@@ -22,7 +22,7 @@ describe("bundled managed plugin bootstrap", () => {
 
         expect(recommendations).toContainEqual({
             platform: "猫耳FM",
-            version: "0.1.5-mymusic.1",
+            version: "0.1.6-mymusic.1",
         });
         expect(recommendations).toHaveLength(BUNDLED_MANAGED_PLUGINS.length);
         expect(recommendations.every(item => !("source" in item))).toBe(true);
@@ -40,7 +40,7 @@ describe("bundled managed plugin bootstrap", () => {
     it("resolves only exact bundled descriptors for local repair", () => {
         expect(getBundledManagedPlugin("猫耳FM")).toMatchObject({
             platform: "猫耳FM",
-            version: "0.1.5-mymusic.1",
+            version: "0.1.6-mymusic.1",
         });
         expect(getBundledManagedPlugin("猫耳fm")).toBeUndefined();
         expect(getBundledManagedPlugin("unknown")).toBeUndefined();
@@ -122,7 +122,7 @@ describe("bundled managed plugin bootstrap", () => {
                 managedDescriptor.version,
             ],
         )).toEqual([
-            ["bilibili", "0.3.2-mymusic.1"],
+            ["bilibili", "0.3.3-mymusic.1"],
             ["Audiomack", "0.0.3-mymusic.1"],
             ["Youtube", "0.0.3-mymusic.2"],
             ["歌词网", "0.0.1-mymusic.1"],
@@ -130,7 +130,7 @@ describe("bundled managed plugin bootstrap", () => {
             ["Navidrome", "0.0.1-mymusic.1"],
             ["suno", "0.0.2-mymusic.1"],
             ["udio", "0.0.2-mymusic.1"],
-            ["猫耳FM", "0.1.5-mymusic.1"],
+            ["猫耳FM", "0.1.6-mymusic.1"],
             ["快手", "0.0.5-mymusic.1"],
             ["音悦台", "0.0.3-mymusic.1"],
             ["WebDAV", "0.0.3-mymusic.1"],

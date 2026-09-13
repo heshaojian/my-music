@@ -14,7 +14,7 @@ interface TestPlugin {
 
 const descriptor: ManagedPluginDescriptor = {
     platform: "bilibili",
-    version: "0.3.2-mymusic.1",
+    version: "0.3.3-mymusic.1",
     source: "module.exports = { platform: 'bilibili' };",
 };
 

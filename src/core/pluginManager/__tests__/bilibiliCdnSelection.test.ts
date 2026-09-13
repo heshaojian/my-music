@@ -66,7 +66,7 @@ describe("managed Bilibili CDN selection", () => {
         const { plugin } = createPlugin("ios", []);
 
         expect(plugin.platform).toBe("bilibili");
-        expect(plugin.version).toBe("0.3.2-mymusic.1");
+        expect(plugin.version).toBe("0.3.3-mymusic.1");
         expect(plugin).not.toHaveProperty("srcUrl");
         expect(BILIBILI_PLUGIN_SOURCE).not.toContain("console.warn(error)");
     });

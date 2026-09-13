@@ -2,6 +2,10 @@ export const BILIBILI_PLUGIN_SOURCE = "\"use strict\";\nObject.defineProperty(ex
 
 const BILIBILI_PATCHED_PLUGIN_SOURCE = BILIBILI_PLUGIN_SOURCE
     .replace(
+        "return `buvid3=${cookie.b_3};buvid4=${cookie.b_4}`;",
+        "return `buvid3=${cookie.b_3};buvid4=${cookie.b_4};b_nut=${Math.floor(Date.now() / 1000)}`;",
+    )
+    .replace(
         "function formatMedia(result) {",
         `function normalizeBilibiliArtworkUrl(value) {
     if (typeof value !== "string" || !value) {
@@ -74,14 +78,45 @@ function durationToSec(duration) {`,
         }`,
     )
     .replace(
+        `async function getTopListDetail(topListItem) {
+    var _a;
+    await getCookie();
+    const res = await axios_1.default.get(\`https://api.bilibili.com/x/web-interface/\${topListItem.id}\`, {
+        headers: Object.assign(Object.assign({}, headers), { referer: "https://www.bilibili.com/", cookie: getCookieString() }),
+    });
+    return Object.assign(Object.assign({}, topListItem), { musicList: (((_a = res.data.data) === null || _a === void 0 ? void 0 : _a.list) || []).map(formatMedia) });
+}`,
+        `async function getTopListDetail(topListItem) {
+    await getCookie();
+    const isRanking = typeof topListItem.id === "string" && topListItem.id.startsWith("ranking/v2?");
+    const referer = isRanking
+        ? "https://www.bilibili.com/v/popular/rank/all/"
+        : "https://www.bilibili.com/";
+    const res = await axios_1.default.get(\`https://api.bilibili.com/x/web-interface/\${topListItem.id}\`, {
+        headers: Object.assign(Object.assign({}, headers), { referer, cookie: getCookieString() }),
+    });
+    const response = res && res.data ? res.data : {};
+    if (typeof response.code !== "number") {
+        throw new Error("Invalid Bilibili ranking response");
+    }
+    if (typeof response.code === "number" && response.code !== 0) {
+        throw new Error(\`Bilibili rankings unavailable (\${response.code})\`);
+    }
+    const providerList = response.data && Array.isArray(response.data.list)
+        ? response.data.list
+        : [];
+    return Object.assign(Object.assign({}, topListItem), { musicList: providerList.map(formatMedia) });
+}`,
+    )
+    .replace(
         "version: \"0.3.1-mymusic.1\"",
-        "version: \"0.3.2-mymusic.1\"",
+        "version: \"0.3.3-mymusic.1\"",
     )
     .replace("console.warn(error);", "void error;");
 
 export const BILIBILI_MANAGED_PLUGIN = {
     platform: "bilibili",
-    version: "0.3.2-mymusic.1",
+    version: "0.3.3-mymusic.1",
     source: BILIBILI_PATCHED_PLUGIN_SOURCE,
 } as const;
 

@@ -56,6 +56,9 @@ type RuntimePlugin = {
     search?: (query: string, page: number, type: string) => Promise<any>;
     getMediaSource?: (item: any, quality?: string) => Promise<any>;
     getLyric?: (item: any) => Promise<any>;
+    getRecommendSheetTags?: () => Promise<any>;
+    getRecommendSheetsByTag?: (tag: any, page?: number) => Promise<any>;
+    getMusicSheetInfo?: (item: any, page?: number) => Promise<any>;
     getTopLists?: () => Promise<any[]> | any[];
     getTopListDetail?: (item: any, page?: number) => Promise<any>;
 };
@@ -220,6 +223,25 @@ liveDescribe("live managed provider compatibility", () => {
         await assertReachableMedia(await firstMediaSource(plugin, rows(result)));
     });
 
+    it("loads current Bilibili rankings", async () => {
+        const plugin = createPlugin(managedPlugin(BILIBILI.platform));
+        const lists = await plugin.getTopLists!();
+        const rankingGroup = lists.find(list => list.title === "排行榜");
+        expect(rankingGroup?.data.length).toBeGreaterThan(0);
+
+        const allRanking = rankingGroup!.data.find(
+            (item: { title?: string }) => item.title === "全站",
+        );
+        expect(allRanking).toBeDefined();
+
+        const detail = await plugin.getTopListDetail!(allRanking);
+        expect(detail.musicList.length).toBeGreaterThan(0);
+        expect(detail.musicList[0]).toEqual(expect.objectContaining({
+            id: expect.anything(),
+            title: expect.any(String),
+        }));
+    });
+
     it("searches and loads lyrics from FollowLyrics", async () => {
         const plugin = createPlugin(managedPlugin(GECIWANG.platform));
         const result = await plugin.search!("Hello", 1, "lyric");
@@ -251,14 +273,28 @@ liveDescribe("live managed provider compatibility", () => {
         await assertReachableMedia(await firstMediaSource(plugin, rows(result)));
     });
 
-    it("loads MaoerFM search results and safely classifies their media", async () => {
+    it("loads MaoerFM recommendations and resolves a reachable free track", async () => {
         const plugin = createPlugin(managedPlugin(MAOERFM.platform));
-        const result = await plugin.search!("翻唱", 1, "music");
-        expect(rows(result).length).toBeGreaterThan(0);
-        const source = await firstMediaSource(plugin, rows(result));
-        if (source) {
-            await assertReachableMedia(source);
-        }
+        const tagsResult = await plugin.getRecommendSheetTags!();
+        const tagGroups = rows(tagsResult);
+        expect(tagGroups.length).toBeGreaterThan(0);
+        expect(tagGroups[0].data.length).toBeGreaterThan(0);
+
+        const sheetsResult = await plugin.getRecommendSheetsByTag!(
+            tagGroups[0].data[0],
+            1,
+        );
+        const sheets = rows(sheetsResult);
+        expect(sheets.length).toBeGreaterThan(0);
+
+        const detail = await plugin.getMusicSheetInfo!(sheets[0], 1);
+        expect(detail.musicList.length).toBeGreaterThan(0);
+        const freeTrack = detail.musicList[0];
+        expect(freeTrack.url).toBeUndefined();
+        await assertReachableMedia(await firstMediaSource(plugin, [freeTrack]));
+
+        const searchResult = await plugin.search!("翻唱", 1, "music");
+        expect(rows(searchResult).length).toBeGreaterThan(0);
     });
 
     it("loads Yinyuetai search results and validates any direct media", async () => {

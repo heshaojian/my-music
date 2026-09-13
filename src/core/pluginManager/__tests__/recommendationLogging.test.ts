@@ -263,6 +263,14 @@ describe("managed plugin production mounting", () => {
             expect(plugin.name).toBe(descriptor.platform);
             expect(plugin.instance.version).toBe(descriptor.version);
             expect(plugin.hash.length).toBeGreaterThan(0);
+            if (descriptor.platform === "猫耳FM") {
+                expect(plugin.supportedMethods).toEqual(expect.objectContaining({
+                    has: expect.any(Function),
+                }));
+                expect(plugin.supportedMethods.has("getRecommendSheetsByTag")).toBe(true);
+                expect(plugin.supportedMethods.has("getRecommendSheetTags")).toBe(true);
+                expect(plugin.supportedMethods.has("getMusicSheetInfo")).toBe(true);
+            }
         },
     );
 });
