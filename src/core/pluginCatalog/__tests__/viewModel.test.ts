@@ -20,14 +20,29 @@ describe("plugin catalog view model", () => {
         expect(buildCatalogViewItems(entries, [{
             name: "Audiomack",
             version: "1.0.0",
-        }], "audio", name => name === "Audiomack")).toEqual([{
+        }], "audio")).toEqual([{
             ...entries[0],
-            managed: true,
+            managed: false,
             status: "update",
         }]);
     });
 
-    it("marks a missing bundled provider as managed and repairable", () => {
+    it("shows a missing bundled provider when the remote catalog is empty", () => {
+        expect(buildCatalogViewItems([], [], "", [{
+            platform: "猫耳FM",
+            version: "0.1.5-mymusic.1",
+        }])).toEqual([{
+            id: "managed-plugin:猫耳FM",
+            name: "猫耳FM",
+            version: "0.1.5-mymusic.1",
+            url: "managed-plugin:%E7%8C%AB%E8%80%B3FM",
+            host: "MyMusic",
+            managed: true,
+            status: "available",
+        }]);
+    });
+
+    it("lets a managed recommendation replace a same-name remote row", () => {
         const maoerEntry = {
             ...entries[0],
             name: "猫耳FM",
@@ -37,9 +52,13 @@ describe("plugin catalog view model", () => {
             [maoerEntry],
             [],
             "",
-            name => name === "猫耳FM",
+            [{ platform: "猫耳FM", version: "0.1.5-mymusic.1" }],
         )).toEqual([{
-            ...maoerEntry,
+            id: "managed-plugin:猫耳FM",
+            name: "猫耳FM",
+            version: "0.1.5-mymusic.1",
+            url: "managed-plugin:%E7%8C%AB%E8%80%B3FM",
+            host: "MyMusic",
             managed: true,
             status: "available",
         }]);

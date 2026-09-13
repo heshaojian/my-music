@@ -262,6 +262,7 @@ describe("managed plugin production mounting", () => {
             expect(plugin.state).toBe(PluginState.Mounted);
             expect(plugin.name).toBe(descriptor.platform);
             expect(plugin.instance.version).toBe(descriptor.version);
+            expect(plugin.hash.length).toBeGreaterThan(0);
         },
     );
 });

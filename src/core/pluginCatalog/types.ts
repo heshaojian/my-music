@@ -30,6 +30,11 @@ export interface InstalledPluginSnapshot {
     srcUrl?: string;
 }
 
+export interface ManagedPluginRecommendation {
+    readonly platform: string;
+    readonly version: string;
+}
+
 export type CatalogEntryStatus = "available" | "installed" | "update";
 
 export interface CatalogLoadResult {
@@ -55,5 +60,6 @@ export interface CatalogInstaller {
     installPluginFromUrl(url: string): Promise<IInstallPluginResult>;
     repairManagedPlugin(platform: string): Promise<IInstallPluginResult>;
     isManagedPlugin(platform: string): boolean;
+    getManagedPluginRecommendations(): ManagedPluginRecommendation[];
     getInstalledPlugins(): InstalledPluginSnapshot[];
 }

@@ -1,6 +1,8 @@
 import {
+    BUNDLED_MANAGED_PLUGINS,
     ensureBundledManagedPlugins,
     getBundledManagedPlugin,
+    getBundledManagedPluginRecommendations,
     isBundledManagedPluginPlatform,
     repairBundledManagedPlugin,
 } from "../ensureBundledManagedPlugins";
@@ -15,6 +17,20 @@ const descriptor = {
 } as const;
 
 describe("bundled managed plugin bootstrap", () => {
+    it("projects every bundled provider without exposing source", () => {
+        const recommendations = getBundledManagedPluginRecommendations();
+
+        expect(recommendations).toContainEqual({
+            platform: "猫耳FM",
+            version: "0.1.5-mymusic.1",
+        });
+        expect(recommendations).toHaveLength(BUNDLED_MANAGED_PLUGINS.length);
+        expect(recommendations.every(item => !("source" in item))).toBe(true);
+        expect(recommendations.every(Object.isFrozen)).toBe(true);
+        expect(getBundledManagedPluginRecommendations())
+            .not.toBe(recommendations);
+    });
+
     it("reserves bundled provider identities from third-party replacement", () => {
         expect(isBundledManagedPluginPlatform("Youtube")).toBe(true);
         expect(isBundledManagedPluginPlatform("快手")).toBe(true);

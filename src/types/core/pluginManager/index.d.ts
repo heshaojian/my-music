@@ -130,6 +130,12 @@ export interface IPluginManager {
     /** Return whether a platform is backed by trusted bundled source. */
     isManagedPlugin(platform: string): boolean;
 
+    /** Return source-free metadata for MyMusic recommended providers. */
+    getManagedPluginRecommendations(): Array<{
+        readonly platform: string;
+        readonly version: string;
+    }>;
+
     /** Reinstall or reconcile one trusted bundled provider by exact name. */
     repairManagedPlugin(platform: string): Promise<IInstallPluginResult>;
 

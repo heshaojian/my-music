@@ -100,7 +100,25 @@ describe("CatalogPluginItem", () => {
             .toEqual({ busy: true, disabled: true });
     });
 
-    it("offers local repair for a missing managed plugin", () => {
+    it("shows automatic restoration for a missing managed plugin", () => {
+        const managedItem = {
+            ...availableItem,
+            name: "猫耳FM",
+            managed: true,
+        };
+        const screen = render(
+            <CatalogPluginItem
+                item={managedItem}
+                busy
+                onInstall={jest.fn()} />,
+        );
+
+        expect(screen.getByLabelText("pluginLibrary.status.restoring")
+            .props.accessibilityState).toEqual({ busy: true, disabled: true });
+        expect(screen.queryByText("pluginLibrary.action.repair")).toBeNull();
+    });
+
+    it("offers an exact local retry after managed restoration fails", () => {
         const managedItem = {
             ...availableItem,
             name: "猫耳FM",
@@ -111,10 +129,11 @@ describe("CatalogPluginItem", () => {
             <CatalogPluginItem
                 item={managedItem}
                 busy={false}
+                error="Unable to restore recommended plugin"
                 onInstall={onInstall} />,
         );
 
-        fireEvent.press(screen.getByLabelText("pluginLibrary.action.repair"));
+        fireEvent.press(screen.getByLabelText("pluginLibrary.action.retry"));
         expect(onInstall).toHaveBeenCalledWith(managedItem);
     });
 
@@ -132,9 +151,9 @@ describe("CatalogPluginItem", () => {
         );
 
         expect(screen.getByText(
-            "1.0.0 - plugins.example.com - pluginLibrary.status.managedInstalled",
+            "1.0.0 - plugins.example.com - pluginLibrary.status.recommendedInstalled",
         )).toBeTruthy();
-        expect(screen.getByLabelText("pluginLibrary.status.managedInstalled")
+        expect(screen.getByLabelText("pluginLibrary.status.recommendedInstalled")
             .props.accessibilityState.disabled).toBe(true);
     });
 });

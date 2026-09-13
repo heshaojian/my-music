@@ -1,6 +1,11 @@
 import { createPluginCatalogService } from "@/core/pluginCatalog/service";
 import { OFFICIAL_PLUGIN_CATALOG } from "@/core/pluginCatalog/constants";
-import type { CatalogCacheRecord, CatalogEntry } from "@/core/pluginCatalog/types";
+import type {
+    CatalogCacheRecord,
+    CatalogEntry,
+    ManagedPluginRecommendation,
+} from "@/core/pluginCatalog/types";
+import type { IInstallPluginResult } from "@/types/core/pluginManager";
 
 const entry: CatalogEntry = {
     id: "https://plugins.example.com/a.js",
@@ -31,8 +36,13 @@ function createDependencies() {
         },
         installer: {
             installPluginFromUrl: jest.fn(async () => ({ success: true })),
-            repairManagedPlugin: jest.fn(async () => ({ success: true })),
+            repairManagedPlugin: jest.fn(
+                async (): Promise<IInstallPluginResult> => ({ success: true }),
+            ),
             isManagedPlugin: jest.fn((_platform: string) => false),
+            getManagedPluginRecommendations: jest.fn(
+                (): ManagedPluginRecommendation[] => [],
+            ),
             getInstalledPlugins: jest.fn(() => []),
         },
         now: jest.fn(() => 200),
@@ -129,12 +139,19 @@ describe("plugin catalog service", () => {
 
     it("repairs a managed entry locally without downloading catalog code", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.isManagedPlugin.mockImplementation(
-            platform => platform === entry.name,
-        );
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
+            platform: entry.name,
+            version: entry.version,
+        }]);
         const service = createPluginCatalogService(dependencies);
+        const managedEntry = {
+            ...entry,
+            id: `managed-plugin:${entry.name}`,
+            url: `managed-plugin:${entry.name}`,
+            host: "MyMusic",
+        };
 
-        await expect(service.install(entry)).resolves.toEqual({ success: true });
+        await expect(service.install(managedEntry)).resolves.toEqual({ success: true });
 
         expect(dependencies.installer.repairManagedPlugin)
             .toHaveBeenCalledWith(entry.name);
@@ -143,22 +160,151 @@ describe("plugin catalog service", () => {
 
     it("uses the validated catalog identity when repairing managed entries", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.isManagedPlugin.mockImplementation(
-            platform => platform === entry.name,
-        );
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
+            platform: entry.name,
+            version: entry.version,
+        }]);
         const service = createPluginCatalogService(dependencies);
         const forgedEntry = {
             ...entry,
+            id: `managed-plugin:${entry.name}`,
+            url: `managed-plugin:${entry.name}`,
+            host: "MyMusic",
             name: "Spoofed",
         };
 
-        await expect(service.install(forgedEntry)).resolves.toEqual({ success: true });
+        await expect(service.install(forgedEntry)).resolves.toMatchObject({
+            success: false,
+        });
 
         expect(dependencies.installer.repairManagedPlugin)
-            .toHaveBeenCalledWith(entry.name);
-        expect(dependencies.installer.repairManagedPlugin)
-            .not.toHaveBeenCalledWith("Spoofed");
+            .not.toHaveBeenCalled();
         expect(dependencies.installer.installPluginFromUrl).not.toHaveBeenCalled();
+    });
+
+    it("rejects managed-looking entries with forged display metadata", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
+            platform: entry.name,
+            version: entry.version,
+        }]);
+        const service = createPluginCatalogService(dependencies);
+        const forgedEntry = {
+            ...entry,
+            id: `managed-plugin:${entry.name}`,
+            url: `managed-plugin:${entry.name}`,
+            host: "plugins.example.com",
+        };
+
+        await expect(service.install(forgedEntry)).resolves.toMatchObject({
+            success: false,
+        });
+
+        expect(dependencies.installer.repairManagedPlugin)
+            .not.toHaveBeenCalled();
+        expect(dependencies.installer.installPluginFromUrl).not.toHaveBeenCalled();
+    });
+
+    it("redacts managed retry failures from the install result", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
+            platform: entry.name,
+            version: entry.version,
+        }]);
+        dependencies.installer.repairManagedPlugin.mockResolvedValue({
+            success: false,
+            message: "/private/path?token=secret",
+        });
+        const service = createPluginCatalogService(dependencies);
+        const managedEntry = {
+            ...entry,
+            id: `managed-plugin:${entry.name}`,
+            url: `managed-plugin:${entry.name}`,
+            host: "MyMusic",
+        };
+
+        await expect(service.install(managedEntry)).resolves.toEqual({
+            success: false,
+            message: "Unable to restore recommended plugin",
+        });
+    });
+
+    it("redacts thrown managed retry failures from the install result", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
+            platform: entry.name,
+            version: entry.version,
+        }]);
+        dependencies.installer.repairManagedPlugin.mockRejectedValue(
+            new Error("/private/path?token=secret"),
+        );
+        const service = createPluginCatalogService(dependencies);
+        const managedEntry = {
+            ...entry,
+            id: `managed-plugin:${entry.name}`,
+            url: `managed-plugin:${entry.name}`,
+            host: "MyMusic",
+        };
+
+        await expect(service.install(managedEntry)).resolves.toEqual({
+            success: false,
+            message: "Unable to restore recommended plugin",
+        });
+    });
+
+    it("reconciles every recommendation through one shared local run", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
+            platform: "猫耳FM",
+            version: "0.1.5-mymusic.1",
+        }]);
+        let finishRepair: (() => void) | undefined;
+        dependencies.installer.repairManagedPlugin.mockImplementation(() =>
+            new Promise(resolve => {
+                finishRepair = () => resolve({ success: true });
+            }));
+        const service = createPluginCatalogService(dependencies);
+
+        const first = service.reconcileManagedRecommendations();
+        const second = service.reconcileManagedRecommendations();
+        expect(dependencies.installer.repairManagedPlugin).toHaveBeenCalledTimes(1);
+        finishRepair?.();
+
+        await expect(Promise.all([first, second])).resolves.toEqual([{}, {}]);
+        expect(dependencies.installer.installPluginFromUrl).not.toHaveBeenCalled();
+    });
+
+    it("returns only provider-scoped managed reconciliation failures", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
+            platform: "猫耳FM",
+            version: "0.1.5-mymusic.1",
+        }]);
+        dependencies.installer.repairManagedPlugin.mockResolvedValue({
+            success: false,
+            message: "/private/path?token=secret",
+        });
+        const service = createPluginCatalogService(dependencies);
+
+        await expect(service.reconcileManagedRecommendations()).resolves.toEqual({
+            "猫耳FM": "Unable to restore recommended plugin",
+        });
+    });
+
+    it("redacts thrown managed reconciliation failures", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
+            platform: "猫耳FM",
+            version: "0.1.5-mymusic.1",
+        }]);
+        dependencies.installer.repairManagedPlugin.mockRejectedValue(
+            new Error("/private/path?token=secret"),
+        );
+        const service = createPluginCatalogService(dependencies);
+
+        await expect(service.reconcileManagedRecommendations()).resolves.toEqual({
+            "猫耳FM": "Unable to restore recommended plugin",
+        });
     });
 
     it("rejects installation of an entry not present in the current catalog", async () => {

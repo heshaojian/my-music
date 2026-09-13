@@ -43,6 +43,7 @@ import {
     ManagedPluginResult,
 } from "./managed/managedPluginLifecycle";
 import {
+    getBundledManagedPluginRecommendations,
     isBundledManagedPluginPlatform,
     repairBundledManagedPlugin,
 } from "./managed/ensureBundledManagedPlugins";
@@ -335,6 +336,10 @@ class PluginManager implements IPluginManager, IInjectable {
 
     isManagedPlugin(platform: string) {
         return isBundledManagedPluginPlatform(platform);
+    }
+
+    getManagedPluginRecommendations() {
+        return [...getBundledManagedPluginRecommendations()];
     }
 
     async repairManagedPlugin(platform: string): Promise<IInstallPluginResult> {

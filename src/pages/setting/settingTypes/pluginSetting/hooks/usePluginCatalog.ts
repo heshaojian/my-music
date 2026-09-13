@@ -7,6 +7,10 @@ import pluginCatalogService, {
 
 export default function usePluginCatalog() {
     const cached = useMemo(() => pluginCatalogService.readCached(), []);
+    const recommendations = useMemo(
+        () => pluginCatalogService.getManagedPluginRecommendations(),
+        [],
+    );
     const [result, setResult] = useState<CatalogLoadResult | null>(cached);
     const [query, setQuery] = useState("");
     const [refreshing, setRefreshing] = useState(false);
@@ -34,6 +38,53 @@ export default function usePluginCatalog() {
         refresh();
     }, [refresh]);
 
+    useEffect(() => {
+        if (recommendations.length === 0) {
+            return;
+        }
+        const managedIds = recommendations.map(
+            item => `managed-plugin:${item.platform}`,
+        );
+        setInstalling(current => ({
+            ...current,
+            ...Object.fromEntries(managedIds.map(id => [id, true])),
+        }));
+        pluginCatalogService.reconcileManagedRecommendations().then(failures => {
+            if (!mounted.current) {
+                return;
+            }
+            setInstalled(pluginCatalogService.getInstalledPlugins());
+            setInstalling(current => ({
+                ...current,
+                ...Object.fromEntries(managedIds.map(id => [id, false])),
+            }));
+            setInstallErrors(current => ({
+                ...Object.fromEntries(Object.entries(current).filter(
+                    ([id]) => !managedIds.includes(id),
+                )),
+                ...Object.fromEntries(Object.entries(failures).map(
+                    ([platform, message]) =>
+                        [`managed-plugin:${platform}`, message],
+                )),
+            }));
+        }).catch(() => {
+            if (!mounted.current) {
+                return;
+            }
+            setInstalling(current => ({
+                ...current,
+                ...Object.fromEntries(managedIds.map(id => [id, false])),
+            }));
+            setInstallErrors(current => ({
+                ...current,
+                ...Object.fromEntries(managedIds.map(id => [
+                    id,
+                    "Unable to restore recommended plugin",
+                ])),
+            }));
+        });
+    }, [recommendations]);
+
     const install = useCallback(async (entry: CatalogEntry) => {
         setInstalling(current => ({ ...current, [entry.id]: true }));
         setInstallErrors(current => Object.fromEntries(
@@ -59,9 +110,9 @@ export default function usePluginCatalog() {
             result?.entries ?? [],
             installed,
             query,
-            pluginCatalogService.isManagedPlugin,
+            recommendations,
         ),
-        [installed, query, result?.entries],
+        [installed, query, recommendations, result?.entries],
     );
 
     return {
@@ -70,10 +121,12 @@ export default function usePluginCatalog() {
         setQuery,
         refresh,
         refreshing,
-        loading: result === null,
+        loading: result === null && recommendations.length === 0,
         stale: result?.stale ?? false,
         error: result?.error,
-        hasCatalogEntries: Boolean(result?.entries.length),
+        hasCatalogEntries: Boolean(
+            recommendations.length || result?.entries.length,
+        ),
         installing,
         installErrors,
         install,

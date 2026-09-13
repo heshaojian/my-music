@@ -21,16 +21,23 @@ export default function CatalogPluginItem({
     onInstall,
 }: CatalogPluginItemProps) {
     const { t } = useI18N();
-    const statusText = item.managed && item.status === "installed"
-        ? t("pluginLibrary.status.managedInstalled")
-        : t(`pluginLibrary.status.${item.status}`);
-    const actionText = item.managed && item.status !== "installed"
-        ? t("pluginLibrary.action.repair")
-        : item.status === "update"
-            ? t("pluginLibrary.action.update")
-            : item.status === "installed"
-                ? statusText
-                : t("pluginLibrary.action.install");
+    const managedInstalled = item.managed && item.status === "installed" && !error;
+    const statusText = managedInstalled
+        ? t("pluginLibrary.status.recommendedInstalled")
+        : item.managed
+            ? t("pluginLibrary.status.restoring")
+            : t(`pluginLibrary.status.${item.status}`);
+    const actionText = item.managed && error
+        ? t("pluginLibrary.action.retry")
+        : item.managed
+            ? statusText
+            : item.status === "update"
+                ? t("pluginLibrary.action.update")
+                : item.status === "installed"
+                    ? statusText
+                    : t("pluginLibrary.action.install");
+
+    const disabled = busy || (item.managed ? !error : item.status === "installed");
 
     return (
         <ListItem withHorizontalPadding heightType="big">
@@ -54,14 +61,18 @@ export default function CatalogPluginItem({
             />
             <TextButton
                 withHorizontalPadding
-                disabled={busy || item.status === "installed"}
+                disabled={disabled}
                 accessibilityState={{
                     busy,
-                    disabled: busy || item.status === "installed",
+                    disabled,
                 }}
                 style={styles.action}
                 onPress={() => onInstall(item)}>
-                {busy ? t("common.loading") : actionText}
+                {busy && item.managed
+                    ? t("pluginLibrary.status.restoring")
+                    : busy
+                        ? t("common.loading")
+                        : actionText}
             </TextButton>
         </ListItem>
     );

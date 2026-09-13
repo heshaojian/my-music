@@ -8,6 +8,7 @@ import type {
     CatalogCache,
 } from "./types";
 import { normalizeHttpsUrl, parseCatalogManifest } from "./validation";
+import { createManagedCatalogEntry } from "./viewModel";
 
 interface PluginCatalogDependencies {
     transport: CatalogTransport;
@@ -17,6 +18,7 @@ interface PluginCatalogDependencies {
 }
 
 const REFRESH_ERROR = "Unable to refresh the plugin catalog";
+const MANAGED_RESTORE_ERROR = "Unable to restore recommended plugin";
 
 function normalizeCacheRecord(record: CatalogCacheRecord | null) {
     if (
@@ -41,6 +43,13 @@ export function createPluginCatalogService(
     dependencies: PluginCatalogDependencies,
 ) {
     let currentEntries: CatalogEntry[] = [];
+    let managedReconciliation: Promise<Record<string, string>> | null = null;
+
+    const getManagedPluginRecommendations = () =>
+        dependencies.installer.getManagedPluginRecommendations().map(item => ({
+            platform: item.platform,
+            version: item.version,
+        }));
 
     const readCacheRecord = () =>
         normalizeCacheRecord(
@@ -104,6 +113,31 @@ export function createPluginCatalogService(
             }
         },
         async install(entry: CatalogEntry) {
+            const approvedManagedEntry = getManagedPluginRecommendations()
+                .map(createManagedCatalogEntry)
+                .find(candidate =>
+                    candidate.id === entry.id &&
+                    candidate.name === entry.name &&
+                    candidate.version === entry.version &&
+                    candidate.host === entry.host &&
+                    candidate.url === entry.url,
+                );
+            if (approvedManagedEntry) {
+                try {
+                    const result = await dependencies.installer
+                        .repairManagedPlugin(approvedManagedEntry.name);
+                    if (result.success) {
+                        return result;
+                    }
+                } catch {
+                    // Managed retry errors are reduced to provider-scoped UI
+                    // state and must not expose paths, signed URLs, or tokens.
+                }
+                return {
+                    success: false,
+                    message: MANAGED_RESTORE_ERROR,
+                };
+            }
             if (currentEntries.length === 0) {
                 currentEntries = readCacheRecord()?.entries ?? [];
             }
@@ -117,9 +151,10 @@ export function createPluginCatalogService(
                 };
             }
             if (dependencies.installer.isManagedPlugin(approvedEntry.name)) {
-                return dependencies.installer.repairManagedPlugin(
-                    approvedEntry.name,
-                );
+                return {
+                    success: false,
+                    message: "Managed plugins use bundled recommendations",
+                };
             }
             return dependencies.installer.installPluginFromUrl(approvedEntry.url);
         },
@@ -128,5 +163,33 @@ export function createPluginCatalogService(
         ],
         isManagedPlugin: (platform: string) =>
             dependencies.installer.isManagedPlugin(platform),
+        getManagedPluginRecommendations,
+        reconcileManagedRecommendations() {
+            if (managedReconciliation) {
+                return managedReconciliation;
+            }
+            managedReconciliation = (async () => {
+                const failures: Record<string, string> = {};
+                for (const recommendation of getManagedPluginRecommendations()) {
+                    try {
+                        const result = await dependencies.installer
+                            .repairManagedPlugin(recommendation.platform);
+                        if (result.success) {
+                            continue;
+                        }
+                    } catch {
+                        // Managed repair errors are intentionally reduced to
+                        // provider-scoped state below.
+                    }
+                    if (!failures[recommendation.platform]) {
+                        failures[recommendation.platform] = MANAGED_RESTORE_ERROR;
+                    }
+                }
+                return failures;
+            })().finally(() => {
+                managedReconciliation = null;
+            });
+            return managedReconciliation;
+        },
     };
 }

@@ -148,7 +148,7 @@ Expected: PASS.
 
 ---
 
-### Task 3: Automatically Reconcile Missing Recommendations
+### Task 3: Automatically Reconcile Every Recommendation
 
 **Files:**
 - Modify: `src/core/pluginCatalog/service.ts`
@@ -163,8 +163,7 @@ Expected: PASS.
 - [ ] **Step 1: Write failing automatic-reconciliation tests**
 
 ```ts
-it("reconciles only missing managed recommendations", async () => {
-    dependencies.installer.getInstalledPlugins.mockReturnValue([]);
+it("reconciles every managed recommendation through the trusted lifecycle", async () => {
     await service.reconcileManagedRecommendations();
     expect(dependencies.installer.repairManagedPlugin)
         .toHaveBeenCalledWith("猫耳FM");
@@ -186,7 +185,7 @@ Expected: FAIL because reconciliation does not exist.
 
 - [ ] **Step 3: Implement idempotent local reconciliation**
 
-The catalog service compares exact recommendation platform names with the installed snapshot and calls `repairManagedPlugin` only for missing entries. It collects generic failures by platform and never invokes remote installation.
+The catalog service calls `repairManagedPlugin` for every recommendation so the existing idempotent lifecycle can verify exact platform, version, source hash, duplicates, and mount health. It collects generic failures by platform, shares concurrent reconciliation through one promise, and never invokes remote installation.
 
 The hook starts local reconciliation on mount, tracks immutable `reconciling` and failure maps, rereads installed plugins on completion, and ignores state updates after unmount.
 

@@ -19,6 +19,11 @@ interface ManagedPluginInstaller {
     ): Promise<unknown>;
 }
 
+export interface ManagedPluginRecommendation {
+    readonly platform: string;
+    readonly version: string;
+}
+
 interface ManagedPluginRepairInstaller {
     ensureManagedPlugin(
         descriptor: ManagedPluginDescriptor,
@@ -60,6 +65,12 @@ const BUNDLED_MANAGED_PLATFORMS = new Set(
 
 export function isBundledManagedPluginPlatform(platform: string) {
     return BUNDLED_MANAGED_PLATFORMS.has(platform);
+}
+
+export function getBundledManagedPluginRecommendations():
+readonly ManagedPluginRecommendation[] {
+    return BUNDLED_MANAGED_PLUGINS.map(({ platform, version }) =>
+        Object.freeze({ platform, version }));
 }
 
 export function getBundledManagedPlugin(platform: string) {
