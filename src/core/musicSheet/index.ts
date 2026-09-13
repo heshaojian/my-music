@@ -2,6 +2,7 @@
  * 歌单管理
  */
 import { ResumeMode, SortType, localPluginPlatform } from "@/constants/commonConst.ts";
+import i18n, { useI18N } from "@/core/i18n";
 import { IAppConfig } from "@/types/core/config";
 import { IInjectable } from "@/types/infra";
 import { isSameMediaItem } from "@/utils/mediaUtils";
@@ -23,8 +24,21 @@ const _defaultSheet: IMusic.IMusicSheetItemBase = {
     platform: localPluginPlatform,
     coverImg: undefined,
     title: "我喜欢",
+    titleMode: "system",
     worksNum: 0,
 };
+
+function withLocalizedSystemTitle<T extends IMusic.IMusicSheetItemBase>(
+    sheet: T,
+    localizedTitle: string,
+): T {
+    const usesSystemTitle =
+        sheet.id === _defaultSheet.id &&
+        (sheet.titleMode === "system" ||
+            (sheet.titleMode === undefined && sheet.title === _defaultSheet.title));
+
+    return usesSystemTitle ? { ...sheet, title: localizedTitle } : sheet;
+}
 
 const musicSheetsBaseAtom = atom<IMusic.IMusicSheetItemBase[]>([]);
 
@@ -84,6 +98,17 @@ class MusicSheetClazz implements IInjectable {
                     const firstSheet = allSheets.splice(defaultSheetIndex, 1);
                     allSheets.unshift(firstSheet[0]);
                 }
+                needRestore = true;
+            }
+
+            if (allSheets[0].titleMode === undefined) {
+                allSheets[0] = {
+                    ...allSheets[0],
+                    titleMode:
+                        allSheets[0].title === _defaultSheet.title
+                            ? "system"
+                            : "custom",
+                };
                 needRestore = true;
             }
 
@@ -159,10 +184,24 @@ class MusicSheetClazz implements IInjectable {
             return;
         }
 
+        const currentSheet = musicSheets[targetSheetIndex];
+        const keepsSystemTitle =
+            sheetId === _defaultSheet.id &&
+            currentSheet.titleMode === "system" &&
+            data.title === i18n.t("musicSheet.favorite");
+        const normalizedData: Partial<IMusic.IMusicSheetItemBase> =
+            sheetId === _defaultSheet.id && data.title !== undefined
+                ? {
+                    ...data,
+                    title: keepsSystemTitle ? currentSheet.title : data.title,
+                    titleMode: keepsSystemTitle ? "system" : "custom",
+                }
+                : data;
+
         const newMusicSheets = produce(musicSheets, draft => {
             draft[targetSheetIndex] = {
                 ...draft[targetSheetIndex],
-                ...data,
+                ...normalizedData,
                 id: sheetId,
             };
             return draft;
@@ -502,12 +541,20 @@ export default MusicSheet;
 
 
 function useSheetsBase() {
-    return useAtomValue(musicSheetsBaseAtom);
+    const sheets = useAtomValue(musicSheetsBaseAtom);
+    const { t } = useI18N();
+    const localizedTitle = t("musicSheet.favorite");
+
+    return useMemo(
+        () => sheets.map(sheet => withLocalizedSystemTitle(sheet, localizedTitle)),
+        [localizedTitle, sheets],
+    );
 }
 
 // sheetId should not change
 function useSheetItem(sheetId: string) {
     const sheetsBase = useAtomValue(musicSheetsBaseAtom);
+    const { t } = useI18N();
 
     const [sheetItem, setSheetItem] = useState<IMusic.IMusicSheetItem>({
         ...(sheetsBase.find(it => it.id === sheetId) ||
@@ -546,7 +593,7 @@ function useSheetItem(sheetId: string) {
         };
     }, []);
 
-    return sheetItem;
+    return withLocalizedSystemTitle(sheetItem, t("musicSheet.favorite"));
 }
 
 function useFavorite(musicItem: IMusic.IMusicItem | null) {

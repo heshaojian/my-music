@@ -57,6 +57,7 @@
     "home.myPlaylistsCount.a11y": "我的歌單，共{count}個",
     "home.starredPlaylistsCount.a11y": "收藏歌單，共{count}個",
     "home.songCount": "{count}首",
+    "musicSheet.favorite": "我喜歡",
     "home.clickToSearch": "點擊這裡開始搜尋",
     "dialog.deleteSheetTitle": "刪除歌單",
     "dialog.deleteSheetContent": "確認刪除歌單「{name}」嗎？",

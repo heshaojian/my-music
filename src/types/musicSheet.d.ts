@@ -5,6 +5,8 @@ declare namespace IMusic {
         artwork?: string;
         /** 标题 */
         title?: string;
+        /** Whether the built-in title follows the app language. */
+        titleMode?: "system" | "custom";
         /** 作者 */
         artist?: string;
         /** 歌单id */
