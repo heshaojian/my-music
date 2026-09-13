@@ -94,6 +94,25 @@ describe("cross-provider playback fallback", () => {
             .toBeLessThan(audiomackSearch.mock.invocationCallOrder[0]);
     });
 
+    it("skips a provider whose source already failed in the native player", async () => {
+        const youtubeSearch = jest.fn().mockResolvedValue({ data: [] });
+        const audiomackSearch = jest.fn().mockResolvedValue({ data: [] });
+        const plugins = [
+            plugin("Youtube", youtubeSearch),
+            plugin("Audiomack", audiomackSearch),
+        ];
+
+        await resolveCrossProviderPlaybackFallback({
+            musicItem: originalTrack,
+            qualityOrder: ["standard"],
+            excludedProviderNames: ["Youtube"],
+            getPluginByName: name => plugins.find(item => item.name === name),
+        });
+
+        expect(youtubeSearch).not.toHaveBeenCalled();
+        expect(audiomackSearch).toHaveBeenCalledTimes(1);
+    });
+
     it("inspects at most five results and picks the deterministic best match", async () => {
         const best = candidate({ id: "best", title: "Hello Live", artist: "Adele" });
         const sixth = candidate({ id: "sixth", title: "Hello (Live)", artist: "Adele" });

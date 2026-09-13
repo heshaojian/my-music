@@ -53,6 +53,10 @@ import {
     getPlaybackPersistenceTrack,
     resolveCrossProviderPlaybackFallback,
 } from "./crossProviderPlaybackFallback";
+import {
+    canAttemptNativePlaybackRecovery,
+    recoverNativePlaybackFailure,
+} from "./nativePlaybackRecovery";
 
 
 
@@ -81,6 +85,12 @@ class TrackPlayer extends EventEmitter<{
     private serviceInited = false;
     // 播放队列索引map
     private playListIndexMap = createMediaIndexMap([] as IMusic.IMusicItem[]);
+    private sourceResolutionId = 0;
+    private nativeRecoveryAttemptedFor = -1;
+    private fallbackProviderForResolution: {
+        sourceResolutionId: number;
+        providerName: string;
+    } | null = null;
 
 
     private static maxMusicQueueLength = 10000;
@@ -168,6 +178,7 @@ class TrackPlayer extends EventEmitter<{
         }
 
         if (track && this.isInPlayList(track)) {
+            this.sourceResolutionId += 1;
             if (!this.configService.getConfig("basic.autoPlayWhenAppStart")) {
                 track.isInit = true;
             }
@@ -250,7 +261,12 @@ class TrackPlayer extends EventEmitter<{
                     ) {
                         trace("播放出错", safeErrorDetails);
 
-                        this.handlePlayFail();
+                        const recovered = await this.tryRecoverNativePlaybackError(
+                            currentTrack as IMusic.IMusicItem,
+                        );
+                        if (!recovered) {
+                            await this.handlePlayFail();
+                        }
                     }
                 },
             );
@@ -456,7 +472,13 @@ class TrackPlayer extends EventEmitter<{
                     const currentState = (
                         await ReactNativeTrackPlayer.getPlaybackState()
                     ).state;
-                    if (currentState === State.Stopped) {
+                    const shouldReloadSource =
+                        currentState === State.Stopped ||
+                        currentState === State.Error;
+                    if (forcePlay || shouldReloadSource) {
+                        this.sourceResolutionId += 1;
+                    }
+                    if (shouldReloadSource) {
                         await this.setTrackSource(currentTrack);
                     }
                     if (currentState !== State.Playing) {
@@ -477,6 +499,8 @@ class TrackPlayer extends EventEmitter<{
 
             // 4. 更新列表状态和当前音乐
             this.setCurrentMusic(musicItem);
+            const sourceResolutionId = ++this.sourceResolutionId;
+            this.fallbackProviderForResolution = null;
             await ReactNativeTrackPlayer.setQueue([{
                 ...musicItem,
                 url: TrackPlayer.proposedAudioUrl,
@@ -549,6 +573,10 @@ class TrackPlayer extends EventEmitter<{
                         if (fallback) {
                             source = fallback.source;
                             usedCrossProviderFallback = true;
+                            this.fallbackProviderForResolution = {
+                                sourceResolutionId,
+                                providerName: fallback.matchedItem.platform,
+                            };
                             this.setQuality(source.quality ?? "standard");
                         }
 
@@ -567,12 +595,20 @@ class TrackPlayer extends EventEmitter<{
             }
 
             // 6. 特殊类型源
-            if (getUrlExt(source.url) === ".m3u8") {
-                // @ts-ignore
-                source.type = "hls";
-            }
+            const resolvedSource = source as IPlugin.IMediaSourceResult;
+            const playbackSource: IPlugin.IMediaSourceResult & {
+                type?: "hls";
+            } = getUrlExt(resolvedSource.url) === ".m3u8"
+                ? {
+                    ...resolvedSource,
+                    type: "hls",
+                }
+                : resolvedSource;
             // 7. 合并结果
-            track = this.mergeTrackSource(musicItem, source) as IMusic.IMusicItem;
+            track = this.mergeTrackSource(
+                musicItem,
+                playbackSource,
+            ) as IMusic.IMusicItem;
 
             // 8. 新增历史记录
             this.musicHistoryService.addMusic(
@@ -638,6 +674,12 @@ class TrackPlayer extends EventEmitter<{
                 await this.handlePlayFail();
             } else if (message === PlayFailReason.PLAY_LIST_IS_EMPTY) {
                 // 队列是空的，不应该出现这种情况
+            } else {
+                errorLog("播放失败", {
+                    message: typeof message === "string"
+                        ? message
+                        : "Unknown playback error",
+                });
             }
         }
     }
@@ -706,6 +748,7 @@ class TrackPlayer extends EventEmitter<{
                 const playingState = (
                     await ReactNativeTrackPlayer.getPlaybackState()
                 ).state;
+                this.sourceResolutionId += 1;
                 await this.setTrackSource(
                     this.mergeTrackSource(musicItem, newSource) as unknown as Track,
                     !musicIsPaused(playingState),
@@ -944,6 +987,80 @@ class TrackPlayer extends EventEmitter<{
             translate: (key, args) => i18n.t(key, args),
             delay,
             skipToNext: () => this.skipToNext(),
+        });
+    }
+
+    private async tryRecoverNativePlaybackError(currentTrack: IMusic.IMusicItem) {
+        const sourceResolutionId = this.sourceResolutionId;
+        if (!canAttemptNativePlaybackRecovery(
+            sourceResolutionId,
+            this.nativeRecoveryAttemptedFor,
+        )) {
+            return false;
+        }
+
+        const musicItem = this.currentMusic;
+        if (
+            !musicItem ||
+            !isSameMediaItem(musicItem, currentTrack) ||
+            LocalMusicSheet.isLocalMusic(musicItem) ||
+            !this.configService.getConfig("basic.tryChangeSourceWhenPlayFail")
+        ) {
+            return false;
+        }
+
+        // Claim before networking so duplicate native errors cannot race.
+        this.nativeRecoveryAttemptedFor = sourceResolutionId;
+        const qualityOrder = getQualityOrder(
+            this.configService.getConfig("basic.defaultPlayQuality") ?? "standard",
+            this.configService.getConfig("basic.playQualityOrder") ?? "asc",
+        );
+        const searchablePlugins =
+            this.pluginManagerService.getSearchablePlugins("music");
+
+        return recoverNativePlaybackFailure({
+            musicItem,
+            qualityOrder,
+            excludedProviderNames:
+                this.fallbackProviderForResolution?.sourceResolutionId ===
+                sourceResolutionId
+                    ? [this.fallbackProviderForResolution.providerName]
+                    : [],
+            isStillCurrent: () =>
+                sourceResolutionId === this.sourceResolutionId &&
+                this.isCurrentMusic(musicItem),
+        }, {
+            getPluginByName: name =>
+                searchablePlugins.find(plugin => plugin.name === name),
+            getPosition: async () =>
+                (await ReactNativeTrackPlayer.getProgress()).position ?? 0,
+            replaceSource: async (source, originalMusicItem, position) => {
+                if (
+                    sourceResolutionId !== this.sourceResolutionId ||
+                    !this.isCurrentMusic(originalMusicItem)
+                ) {
+                    throw new Error("stale playback recovery");
+                }
+                this.setQuality(source.quality ?? "standard");
+                const normalizedSource = getUrlExt(source.url) === ".m3u8"
+                    ? {
+                        ...source,
+                        type: "hls" as const,
+                    }
+                    : source;
+                const replacement = this.mergeTrackSource(
+                    originalMusicItem,
+                    normalizedSource,
+                ) as unknown as Track;
+                await this.setTrackSource(
+                    replacement,
+                    true,
+                    originalMusicItem,
+                );
+                if (position > 0 && this.isCurrentMusic(originalMusicItem)) {
+                    await this.seekTo(position);
+                }
+            },
         });
     }
 

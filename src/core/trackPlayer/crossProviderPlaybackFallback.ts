@@ -76,6 +76,7 @@ interface ResolveCrossProviderPlaybackFallbackOptions {
     getPluginByName(name: string): FallbackPlugin | undefined;
     shouldAbort?: () => boolean;
     deadlineMs?: number;
+    excludedProviderNames?: readonly string[];
 }
 
 interface ScoredCandidate {
@@ -290,6 +291,7 @@ export async function resolveCrossProviderPlaybackFallback({
     getPluginByName,
     shouldAbort = () => false,
     deadlineMs = DEFAULT_DEADLINE_MS,
+    excludedProviderNames = [],
 }: ResolveCrossProviderPlaybackFallbackOptions): Promise<CrossProviderPlaybackFallbackResult | null> {
     const expiresAt = Date.now() + deadlineMs;
     const matchingTitle = typeof musicItem.alias === "string" && musicItem.alias.trim()
@@ -305,7 +307,10 @@ export async function resolveCrossProviderPlaybackFallback({
         if (shouldAbort() || Date.now() >= expiresAt) {
             return null;
         }
-        if (providerName === musicItem.platform) {
+        if (
+            providerName === musicItem.platform ||
+            excludedProviderNames.includes(providerName)
+        ) {
             continue;
         }
 
