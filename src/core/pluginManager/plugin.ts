@@ -34,7 +34,10 @@ import MediaCache from "../mediaCache";
 import _internalPluginMeta from "./meta";
 import { createPluginRuntimeEnvironment } from "./runtimeEnvironment";
 import { IPluginManager } from "@/types/core/pluginManager";
-import { resolveProviderMediaSource } from "./mediaSourcePolicy";
+import {
+    normalizePluginMediaSource,
+    resolveProviderMediaSource,
+} from "./mediaSourcePolicy";
 import {
     resolveWithBilibiliQualityFallback,
 } from "./bilibiliQualityFallback";
@@ -292,10 +295,12 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 musicItem.platform,
                 quality,
                 async requestedQuality =>
-                    (await parserPlugin.instance.getMediaSource!(
-                        musicItem,
-                        requestedQuality,
-                    )) ?? {
+                    normalizePluginMediaSource(
+                        await parserPlugin.instance.getMediaSource!(
+                            musicItem,
+                            requestedQuality,
+                        ),
+                    ) ?? {
                         url: musicItem?.qualities?.[requestedQuality]?.url,
                     },
                 URL,

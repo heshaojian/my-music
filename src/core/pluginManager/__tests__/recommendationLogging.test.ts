@@ -71,7 +71,11 @@ jest.mock("@/core/i18n", () => ({
 }));
 jest.mock("@/core/mediaCache", () => ({
     __esModule: true,
-    default: {},
+    default: {
+        getMediaCache: jest.fn(() => null),
+        removeMediaCache: jest.fn(),
+        setMediaCache: jest.fn(),
+    },
 }));
 jest.mock("react-native-device-info", () => ({
     __esModule: true,
@@ -200,5 +204,26 @@ describe("recommendation wrapper logging", () => {
         );
         expect(JSON.stringify((devLog as jest.Mock).mock.calls)).not.toContain("secret");
         expect(JSON.stringify((devLog as jest.Mock).mock.calls)).not.toContain("provider response");
+    });
+});
+
+describe("legacy direct media source integration", () => {
+    it("normalizes a string-returning plugin through the playback wrapper", async () => {
+        const url = "https://cdn.example.com/audio/song.mp3";
+        const plugin = new Plugin(
+            () => ({
+                platform: "udio",
+                cacheControl: "no-store",
+                async getMediaSource() {
+                    return url;
+                },
+            }),
+            "managed-plugin://udio",
+        );
+
+        await expect(plugin.methods.getMediaSource({
+            id: "track-1",
+            platform: "udio",
+        }, "standard")).resolves.toMatchObject({ url });
     });
 });

@@ -1,5 +1,6 @@
 import {
     getPreferredDirectMediaSource,
+    normalizePluginMediaSource,
     resolveProviderMediaSource,
 } from "../mediaSourcePolicy";
 
@@ -69,4 +70,46 @@ describe("MaoerFM media source policy", () => {
         ).resolves.toBe(resolved);
         expect(resolver).toHaveBeenCalledTimes(1);
     });
+});
+
+describe("legacy plugin media source compatibility", () => {
+    it("wraps a non-empty URL string without mutating it", () => {
+        const url = "https://cdn.example.com/audio/song.mp3";
+
+        expect(normalizePluginMediaSource(url)).toEqual({ url });
+    });
+
+    it("preserves an object media source", () => {
+        const source = {
+            url: "https://cdn.example.com/audio/song.m4a",
+            headers: { Referer: "https://example.com" },
+        };
+
+        expect(normalizePluginMediaSource(source)).toBe(source);
+    });
+
+    it.each([
+        undefined,
+        null,
+        "",
+        "   ",
+        " https://cdn.example.com/audio/song.mp3 ",
+        "http://cdn.example.com/audio/song.mp3",
+        "https://user:secret@cdn.example.com/audio/song.mp3",
+        "file:///private/audio/song.mp3",
+        "https://localhost/audio/song.mp3",
+        "https://127.0.0.1/audio/song.mp3",
+        "https://192.168.1.20/audio/song.mp3",
+        "https://[::1]/audio/song.mp3",
+        "not a URL",
+        "https://cdn.example.com/audio/song.mp3\nnext",
+        42,
+        true,
+        [],
+    ])(
+        "rejects invalid legacy source %#",
+        source => {
+            expect(normalizePluginMediaSource(source)).toBeNull();
+        },
+    );
 });

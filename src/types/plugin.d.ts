@@ -92,7 +92,7 @@ declare namespace IPlugin {
         getMediaSource?: (
             musicItem: IMusic.IMusicItemBase,
             quality: IMusic.IQualityKey,
-        ) => Promise<IMediaSourceResult | null>;
+        ) => Promise<IMediaSourceResult | string | null>;
         /** 根据主键去查询歌曲信息 */
         getMusicInfo?: (
             musicBase: ICommon.IMediaBase,
