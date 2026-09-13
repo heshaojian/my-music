@@ -53,5 +53,7 @@ export interface CatalogCache {
 
 export interface CatalogInstaller {
     installPluginFromUrl(url: string): Promise<IInstallPluginResult>;
+    repairManagedPlugin(platform: string): Promise<IInstallPluginResult>;
+    isManagedPlugin(platform: string): boolean;
     getInstalledPlugins(): InstalledPluginSnapshot[];
 }

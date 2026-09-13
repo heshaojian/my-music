@@ -127,6 +127,12 @@ export interface IPluginManager {
         descriptor: IManagedPluginDescriptor,
     ): Promise<IManagedPluginResult>;
 
+    /** Return whether a platform is backed by trusted bundled source. */
+    isManagedPlugin(platform: string): boolean;
+
+    /** Reinstall or reconcile one trusted bundled provider by exact name. */
+    repairManagedPlugin(platform: string): Promise<IInstallPluginResult>;
+
     /**
      * 获取按顺序排序的所有插件
      * @returns 按定义顺序排序的插件实例数组

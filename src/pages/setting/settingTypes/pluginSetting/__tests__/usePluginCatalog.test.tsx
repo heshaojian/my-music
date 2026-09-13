@@ -5,6 +5,7 @@ const mockReadCached = jest.fn();
 const mockRefresh = jest.fn();
 const mockInstall = jest.fn();
 const mockGetInstalledPlugins = jest.fn();
+const mockIsManagedPlugin = jest.fn((_platform: string) => false);
 const mockBuildCatalogViewItems = jest.fn(
     (entries: Array<Record<string, unknown>>, ..._args: unknown[]) => entries,
 );
@@ -17,12 +18,19 @@ jest.mock("@/core/pluginCatalog", () => ({
         install: (...args: unknown[]) => mockInstall(...args),
         getInstalledPlugins: (...args: unknown[]) =>
             mockGetInstalledPlugins(...args),
+        isManagedPlugin: (platform: string) => mockIsManagedPlugin(platform),
     },
     buildCatalogViewItems: (
         entries: Array<Record<string, unknown>>,
         installed: unknown,
         query: unknown,
-    ) => mockBuildCatalogViewItems(entries, installed, query),
+        isManagedPlugin: unknown,
+    ) => mockBuildCatalogViewItems(
+        entries,
+        installed,
+        query,
+        isManagedPlugin,
+    ),
 }));
 
 const entry = {
@@ -59,6 +67,7 @@ describe("usePluginCatalog", () => {
             [entry],
             [],
             "",
+            expect.any(Function),
         );
 
         act(() => result.current.setQuery("exam"));
@@ -66,6 +75,7 @@ describe("usePluginCatalog", () => {
             [entry],
             [],
             "exam",
+            expect.any(Function),
         );
         expect(mockRefresh).toHaveBeenCalledTimes(1);
     });

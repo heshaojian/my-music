@@ -55,7 +55,12 @@ export default function usePluginCatalog() {
     }, []);
 
     const items = useMemo(
-        () => buildCatalogViewItems(result?.entries ?? [], installed, query),
+        () => buildCatalogViewItems(
+            result?.entries ?? [],
+            installed,
+            query,
+            pluginCatalogService.isManagedPlugin,
+        ),
         [installed, query, result?.entries],
     );
 

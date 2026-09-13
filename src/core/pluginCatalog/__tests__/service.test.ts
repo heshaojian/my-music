@@ -31,6 +31,8 @@ function createDependencies() {
         },
         installer: {
             installPluginFromUrl: jest.fn(async () => ({ success: true })),
+            repairManagedPlugin: jest.fn(async () => ({ success: true })),
+            isManagedPlugin: jest.fn((_platform: string) => false),
             getInstalledPlugins: jest.fn(() => []),
         },
         now: jest.fn(() => 200),
@@ -123,6 +125,40 @@ describe("plugin catalog service", () => {
 
         await expect(service.install(entry)).resolves.toEqual({ success: true });
         expect(dependencies.installer.installPluginFromUrl).toHaveBeenCalledWith(entry.url);
+    });
+
+    it("repairs a managed entry locally without downloading catalog code", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.isManagedPlugin.mockImplementation(
+            platform => platform === entry.name,
+        );
+        const service = createPluginCatalogService(dependencies);
+
+        await expect(service.install(entry)).resolves.toEqual({ success: true });
+
+        expect(dependencies.installer.repairManagedPlugin)
+            .toHaveBeenCalledWith(entry.name);
+        expect(dependencies.installer.installPluginFromUrl).not.toHaveBeenCalled();
+    });
+
+    it("uses the validated catalog identity when repairing managed entries", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.isManagedPlugin.mockImplementation(
+            platform => platform === entry.name,
+        );
+        const service = createPluginCatalogService(dependencies);
+        const forgedEntry = {
+            ...entry,
+            name: "Spoofed",
+        };
+
+        await expect(service.install(forgedEntry)).resolves.toEqual({ success: true });
+
+        expect(dependencies.installer.repairManagedPlugin)
+            .toHaveBeenCalledWith(entry.name);
+        expect(dependencies.installer.repairManagedPlugin)
+            .not.toHaveBeenCalledWith("Spoofed");
+        expect(dependencies.installer.installPluginFromUrl).not.toHaveBeenCalled();
     });
 
     it("rejects installation of an entry not present in the current catalog", async () => {

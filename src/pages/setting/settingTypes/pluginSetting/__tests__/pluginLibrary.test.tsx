@@ -14,6 +14,7 @@ const item = {
     version: "1.0.0",
     url: "https://plugins.example.com/a.js",
     host: "plugins.example.com",
+    managed: false,
     status: "available" as const,
 };
 
@@ -124,6 +125,24 @@ describe("PluginLibrary", () => {
 
         expect(mockShowDialog).not.toHaveBeenCalled();
         expect(mockInstall).toHaveBeenCalledWith(item);
+    });
+
+    it("repairs trusted managed code without a third-party warning", () => {
+        const managedItem = {
+            ...item,
+            name: "猫耳FM",
+            managed: true,
+        };
+        mockCatalogState = {
+            ...mockCatalogState,
+            items: [managedItem],
+        };
+        const screen = render(<PluginLibrary />);
+
+        fireEvent.press(screen.getByLabelText("install-猫耳FM"));
+
+        expect(mockShowDialog).not.toHaveBeenCalled();
+        expect(mockInstall).toHaveBeenCalledWith(managedItem);
     });
 
     it("shows cached and retryable failure states", () => {

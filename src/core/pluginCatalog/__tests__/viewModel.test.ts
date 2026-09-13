@@ -20,9 +20,28 @@ describe("plugin catalog view model", () => {
         expect(buildCatalogViewItems(entries, [{
             name: "Audiomack",
             version: "1.0.0",
-        }], "audio")).toEqual([{
+        }], "audio", name => name === "Audiomack")).toEqual([{
             ...entries[0],
+            managed: true,
             status: "update",
+        }]);
+    });
+
+    it("marks a missing bundled provider as managed and repairable", () => {
+        const maoerEntry = {
+            ...entries[0],
+            name: "猫耳FM",
+        };
+
+        expect(buildCatalogViewItems(
+            [maoerEntry],
+            [],
+            "",
+            name => name === "猫耳FM",
+        )).toEqual([{
+            ...maoerEntry,
+            managed: true,
+            status: "available",
         }]);
     });
 

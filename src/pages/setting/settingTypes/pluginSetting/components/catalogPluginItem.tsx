@@ -21,12 +21,16 @@ export default function CatalogPluginItem({
     onInstall,
 }: CatalogPluginItemProps) {
     const { t } = useI18N();
-    const statusText = t(`pluginLibrary.status.${item.status}`);
-    const actionText = item.status === "update"
-        ? t("pluginLibrary.action.update")
-        : item.status === "installed"
-            ? t("pluginLibrary.status.installed")
-            : t("pluginLibrary.action.install");
+    const statusText = item.managed && item.status === "installed"
+        ? t("pluginLibrary.status.managedInstalled")
+        : t(`pluginLibrary.status.${item.status}`);
+    const actionText = item.managed && item.status !== "installed"
+        ? t("pluginLibrary.action.repair")
+        : item.status === "update"
+            ? t("pluginLibrary.action.update")
+            : item.status === "installed"
+                ? statusText
+                : t("pluginLibrary.action.install");
 
     return (
         <ListItem withHorizontalPadding heightType="big">

@@ -42,7 +42,10 @@ import {
     ManagedPluginDescriptor,
     ManagedPluginResult,
 } from "./managed/managedPluginLifecycle";
-import { isBundledManagedPluginPlatform } from "./managed/ensureBundledManagedPlugins";
+import {
+    isBundledManagedPluginPlatform,
+    repairBundledManagedPlugin,
+} from "./managed/ensureBundledManagedPlugins";
 
 const pluginsAtom = atom<Plugin[]>([]);
 const pluginCacheStore = getOrCreateMMKV("plugin.cache");
@@ -328,6 +331,14 @@ class PluginManager implements IPluginManager, IInjectable {
             result.plugin,
         ]);
         return result;
+    }
+
+    isManagedPlugin(platform: string) {
+        return isBundledManagedPluginPlatform(platform);
+    }
+
+    async repairManagedPlugin(platform: string): Promise<IInstallPluginResult> {
+        return repairBundledManagedPlugin(this, platform);
     }
 
     /**

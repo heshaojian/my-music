@@ -116,12 +116,17 @@ export function createPluginCatalogService(
                     message: "Plugin is not in the validated catalog",
                 };
             }
-            return dependencies.installer.installPluginFromUrl(
-                approvedEntry.url,
-            );
+            if (dependencies.installer.isManagedPlugin(approvedEntry.name)) {
+                return dependencies.installer.repairManagedPlugin(
+                    approvedEntry.name,
+                );
+            }
+            return dependencies.installer.installPluginFromUrl(approvedEntry.url);
         },
         getInstalledPlugins: () => [
             ...dependencies.installer.getInstalledPlugins(),
         ],
+        isManagedPlugin: (platform: string) =>
+            dependencies.installer.isManagedPlugin(platform),
     };
 }

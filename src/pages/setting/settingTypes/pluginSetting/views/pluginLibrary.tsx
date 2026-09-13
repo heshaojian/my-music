@@ -27,6 +27,10 @@ export default function PluginLibrary() {
     const catalog = usePluginCatalog();
 
     const install = (item: CatalogViewItem) => {
+        if (item.managed) {
+            catalog.install(item);
+            return;
+        }
         if (PersistStatus.get("app.pluginCatalogTrustAccepted")) {
             catalog.install(item);
             return;

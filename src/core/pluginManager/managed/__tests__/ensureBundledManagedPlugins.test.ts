@@ -1,6 +1,8 @@
 import {
     ensureBundledManagedPlugins,
+    getBundledManagedPlugin,
     isBundledManagedPluginPlatform,
+    repairBundledManagedPlugin,
 } from "../ensureBundledManagedPlugins";
 import { errorLog } from "@/utils/log";
 
@@ -17,6 +19,59 @@ describe("bundled managed plugin bootstrap", () => {
         expect(isBundledManagedPluginPlatform("Youtube")).toBe(true);
         expect(isBundledManagedPluginPlatform("快手")).toBe(true);
         expect(isBundledManagedPluginPlatform("Spotify")).toBe(false);
+    });
+
+    it("resolves only exact bundled descriptors for local repair", () => {
+        expect(getBundledManagedPlugin("猫耳FM")).toMatchObject({
+            platform: "猫耳FM",
+            version: "0.1.5-mymusic.1",
+        });
+        expect(getBundledManagedPlugin("猫耳fm")).toBeUndefined();
+        expect(getBundledManagedPlugin("unknown")).toBeUndefined();
+    });
+
+    it("repairs an exact bundled provider and returns its installed identity", async () => {
+        const manager = {
+            ensureManagedPlugin: jest.fn(async () => ({
+                status: "installed" as const,
+                plugin: { name: "猫耳FM", hash: "trusted-hash" },
+            })),
+        };
+
+        await expect(repairBundledManagedPlugin(manager, "猫耳FM"))
+            .resolves.toEqual({
+                success: true,
+                pluginName: "猫耳FM",
+                pluginHash: "trusted-hash",
+            });
+        expect(manager.ensureManagedPlugin).toHaveBeenCalledWith(
+            expect.objectContaining({ platform: "猫耳FM" }),
+        );
+    });
+
+    it("fails closed for unknown providers without invoking the lifecycle", async () => {
+        const manager = { ensureManagedPlugin: jest.fn() };
+
+        await expect(repairBundledManagedPlugin(manager, "猫耳fm"))
+            .resolves.toMatchObject({ success: false });
+        expect(manager.ensureManagedPlugin).not.toHaveBeenCalled();
+    });
+
+    it("redacts managed repair failures", async () => {
+        const manager = {
+            ensureManagedPlugin: jest.fn().mockRejectedValue(
+                new Error("/private/path?token=secret"),
+            ),
+        };
+
+        await expect(repairBundledManagedPlugin(manager, "猫耳FM"))
+            .resolves.toMatchObject({ success: false });
+        expect(errorLog).toHaveBeenCalledWith(
+            "Managed plugin repair failed",
+            { platform: "猫耳FM" },
+        );
+        expect(JSON.stringify((errorLog as jest.Mock).mock.calls))
+            .not.toContain("secret");
     });
 
     it("registers every official provider as a managed default", async () => {

@@ -19,6 +19,17 @@ interface ManagedPluginInstaller {
     ): Promise<unknown>;
 }
 
+interface ManagedPluginRepairInstaller {
+    ensureManagedPlugin(
+        descriptor: ManagedPluginDescriptor,
+    ): Promise<{
+        plugin: {
+            name: string;
+            hash: string;
+        };
+    }>;
+}
+
 type ManagedPluginFailureHandler = (
     platform: string,
     error: unknown,
@@ -49,6 +60,39 @@ const BUNDLED_MANAGED_PLATFORMS = new Set(
 
 export function isBundledManagedPluginPlatform(platform: string) {
     return BUNDLED_MANAGED_PLATFORMS.has(platform);
+}
+
+export function getBundledManagedPlugin(platform: string) {
+    return BUNDLED_MANAGED_PLUGINS.find(
+        descriptor => descriptor.platform === platform,
+    );
+}
+
+export async function repairBundledManagedPlugin(
+    manager: ManagedPluginRepairInstaller,
+    platform: string,
+) {
+    const descriptor = getBundledManagedPlugin(platform);
+    if (!descriptor) {
+        return {
+            success: false,
+            message: "Managed plugin is unavailable",
+        };
+    }
+    try {
+        const result = await manager.ensureManagedPlugin(descriptor);
+        return {
+            success: true,
+            pluginName: result.plugin.name,
+            pluginHash: result.plugin.hash,
+        };
+    } catch {
+        errorLog("Managed plugin repair failed", { platform });
+        return {
+            success: false,
+            message: "Managed plugin repair failed",
+        };
+    }
 }
 
 export async function ensureBundledManagedPlugins(

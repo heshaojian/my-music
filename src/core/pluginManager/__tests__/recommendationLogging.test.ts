@@ -1,5 +1,7 @@
 import { devLog } from "@/utils/log";
 import { Plugin } from "../plugin";
+import { PluginState } from "../plugin";
+import { BUNDLED_MANAGED_PLUGINS } from "../managed/ensureBundledManagedPlugins";
 
 jest.mock("@/utils/log", () => ({
     devLog: jest.fn(),
@@ -61,9 +63,6 @@ jest.mock("webdav", () => ({}));
 jest.mock("../meta", () => ({
     __esModule: true,
     default: { getUserVariables: () => ({}) },
-}));
-jest.mock("../runtimeEnvironment", () => ({
-    createPluginRuntimeEnvironment: () => ({ env: {}, process: {} }),
 }));
 jest.mock("@/core/i18n", () => ({
     __esModule: true,
@@ -249,4 +248,20 @@ describe("legacy direct media source integration", () => {
             platform: "YouTube",
         }, "standard")).resolves.toMatchObject(source);
     });
+});
+
+describe("managed plugin production mounting", () => {
+    it.each(BUNDLED_MANAGED_PLUGINS)(
+        "mounts $platform through the production Plugin runtime",
+        descriptor => {
+            const plugin = new Plugin(
+                descriptor.source,
+                `managed-plugin://${descriptor.platform}`,
+            );
+
+            expect(plugin.state).toBe(PluginState.Mounted);
+            expect(plugin.name).toBe(descriptor.platform);
+            expect(plugin.instance.version).toBe(descriptor.version);
+        },
+    );
 });

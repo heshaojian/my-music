@@ -47,6 +47,7 @@ const availableItem = {
     version: "1.0.0",
     url: "https://plugins.example.com/a.js",
     host: "plugins.example.com",
+    managed: false,
     status: "available" as const,
 };
 
@@ -97,5 +98,43 @@ describe("CatalogPluginItem", () => {
         expect(screen.getByText("Install failed")).toBeTruthy();
         expect(screen.getByLabelText("common.loading").props.accessibilityState)
             .toEqual({ busy: true, disabled: true });
+    });
+
+    it("offers local repair for a missing managed plugin", () => {
+        const managedItem = {
+            ...availableItem,
+            name: "猫耳FM",
+            managed: true,
+        };
+        const onInstall = jest.fn();
+        const screen = render(
+            <CatalogPluginItem
+                item={managedItem}
+                busy={false}
+                onInstall={onInstall} />,
+        );
+
+        fireEvent.press(screen.getByLabelText("pluginLibrary.action.repair"));
+        expect(onInstall).toHaveBeenCalledWith(managedItem);
+    });
+
+    it("labels an installed managed plugin without an action", () => {
+        const screen = render(
+            <CatalogPluginItem
+                item={{
+                    ...availableItem,
+                    name: "猫耳FM",
+                    managed: true,
+                    status: "installed",
+                }}
+                busy={false}
+                onInstall={jest.fn()} />,
+        );
+
+        expect(screen.getByText(
+            "1.0.0 - plugins.example.com - pluginLibrary.status.managedInstalled",
+        )).toBeTruthy();
+        expect(screen.getByLabelText("pluginLibrary.status.managedInstalled")
+            .props.accessibilityState.disabled).toBe(true);
     });
 });
