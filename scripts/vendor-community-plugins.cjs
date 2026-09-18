@@ -313,11 +313,49 @@ function transformProviderSource(source, provider) {
             "qq media URL validation",
         );
     } else if (provider.key === "kuwo") {
-        transformed = transformed.replaceAll("http://", "https://");
+        transformed = replaceExpectedCount(
+            transformed,
+            "http://",
+            "https://",
+            14,
+            "kuwo HTTPS upgrades",
+        );
+        transformed = injectMediaUrlGuard(transformed, provider);
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                "        return {",
+                "            url: res.url,",
+                "        };",
+            ].join("\n"),
+            [
+                "        const candidateUrl = res.url;",
+                "        if (!isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)) {",
+                "            return;",
+                "        }",
+                "        return {",
+                "            url: candidateUrl,",
+                "        };",
+            ].join("\n"),
+            1,
+            "kuwo media URL validation",
+        );
     } else if (provider.key === "migu") {
-        transformed = transformed
-            .replaceAll('referer: "http://music.migu.cn"', 'referer: "https://music.migu.cn"')
-            .replaceAll('referer: "http://m.music.migu.cn/v3"', 'referer: "https://m.music.migu.cn/v3"');
+        transformed = injectMediaUrlGuard(transformed, provider);
+        transformed = replaceExpectedCount(
+            transformed,
+            'referer: "http://music.migu.cn"',
+            'referer: "https://music.migu.cn"',
+            1,
+            "migu desktop referer HTTPS upgrade",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            'referer: "http://m.music.migu.cn/v3"',
+            'referer: "https://m.music.migu.cn/v3"',
+            1,
+            "migu mobile referer HTTPS upgrade",
+        );
         transformed = replaceExactlyOnce(
             transformed,
             /^searchLyric\('夜曲', 1\)\.then\(console\.log\);\s*\r?\n/mu,
@@ -330,6 +368,101 @@ function transformProviderSource(source, provider) {
             "`https:${",
             2,
             "migu protocol-relative artwork constructors",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                '        xsrfCookieName: "XSRF-TOKEN",',
+                "        withCredentials: true,",
+                "",
+            ].join("\n"),
+            "",
+            1,
+            "migu ambient credential forwarding removal",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                "function musicCanPlayFilter(_) {",
+                "    return _.mp3 || _.listenUrl || _.lisQq || _.lisCr;",
+                "}",
+            ].join("\n"),
+            [
+                "function musicCanPlayFilter(_) {",
+                "    if (_.vipFlag !== undefined && _.vipFlag !== 0) {",
+                "        return;",
+                "    }",
+                "    const candidateUrl = _.mp3 || _.listenUrl || _.lisQq || _.lisCr;",
+                "    return isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)",
+                "        ? candidateUrl",
+                "        : undefined;",
+                "}",
+            ].join("\n"),
+            1,
+            "migu projected media URL validation",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                '    if (quality === "standard" && musicItem.url) {',
+                "        return {",
+                "            url: musicItem.url,",
+                "        };",
+            ].join("\n"),
+            [
+                '    if (quality === "standard" && musicItem.url) {',
+                "        if (!isAllowedMediaUrl(musicItem.url, ALLOWED_MEDIA_HOSTS)) {",
+                "            return;",
+                "        }",
+                "        return {",
+                "            url: musicItem.url,",
+                "        };",
+            ].join("\n"),
+            1,
+            "migu cached media URL validation",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                "        return {",
+                "            artwork: musicItem.artwork || result.picM,",
+                "            url: result.listenUrl || result.listenQq || result.lisCr,",
+                "        };",
+            ].join("\n"),
+            [
+                "        const candidateUrl = result.listenUrl || result.listenQq || result.lisCr;",
+                "        if (!isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)) {",
+                "            return;",
+                "        }",
+                "        return {",
+                "            artwork: musicItem.artwork || result.picM,",
+                "            url: candidateUrl,",
+                "        };",
+            ].join("\n"),
+            1,
+            "migu resolved media URL validation",
+        );
+    } else if (provider.key === "ximalaya") {
+        transformed = injectMediaUrlGuard(transformed, provider);
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                "    }).toString(CryptoJs.enc.Utf8);",
+                "    return {",
+                "        url,",
+                "    };",
+            ].join("\n"),
+            [
+                "    }).toString(CryptoJs.enc.Utf8);",
+                "    if (!isAllowedMediaUrl(url, ALLOWED_MEDIA_HOSTS)) {",
+                "        return;",
+                "    }",
+                "    return {",
+                "        url,",
+                "    };",
+            ].join("\n"),
+            1,
+            "ximalaya media URL validation",
         );
     }
     assertNoSensitiveLogging(transformed, provider);
