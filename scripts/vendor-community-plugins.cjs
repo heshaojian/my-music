@@ -151,6 +151,46 @@ function replaceExpectedCount(source, search, replacement, expectedCount, label)
     return source.replaceAll(search, replacement);
 }
 
+function createMediaUrlGuard(allowedHosts) {
+    return [
+        `const ALLOWED_MEDIA_HOSTS = Object.freeze(${JSON.stringify(allowedHosts)});`,
+        "function isAllowedMediaUrl(value, allowedSuffixes) {",
+        '    if (typeof value !== "string" || value.trim() !== value) return false;',
+        "    try {",
+        "        const parsed = new URL(value);",
+        '        return parsed.protocol === "https:" &&',
+        "            !parsed.username && !parsed.password &&",
+        "            allowedSuffixes.some(suffix =>",
+        "                parsed.hostname === suffix ||",
+        '                parsed.hostname.endsWith(`.${suffix}`));',
+        "    } catch {",
+        "        return false;",
+        "    }",
+        "}",
+    ].join("\n");
+}
+
+function injectMediaUrlGuard(source, provider) {
+    return replaceExpectedCount(
+        source,
+        '"use strict";\n',
+        `"use strict";\n${createMediaUrlGuard(provider.allowedHosts)}\n`,
+        1,
+        `${provider.key} media URL guard insertion`,
+    );
+}
+
+function assertNoSensitiveLogging(source, provider) {
+    const loggingCalls = source.match(
+        /\bconsole\.(?:log|error|warn|info)\s*\(/gu,
+    ) ?? [];
+    if (loggingCalls.length !== 0) {
+        throw new Error(
+            `${provider.key} expected no console logging, found ${loggingCalls.length}`,
+        );
+    }
+}
+
 function transformCommonSource(source, provider) {
     const withoutSourceUrl = replaceExactlyOnce(
         source,
@@ -175,10 +215,67 @@ function transformCommonSource(source, provider) {
 
 function transformProviderSource(source, provider) {
     let transformed = transformCommonSource(source, provider);
-    if (provider.key === "qq") {
-        transformed = transformed
-            .replaceAll("http://u.y.qq.com", "https://u.y.qq.com")
-            .replaceAll("http://c.y.qq.com", "https://c.y.qq.com");
+    if (provider.key === "netease") {
+        transformed = injectMediaUrlGuard(transformed, provider);
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                "    return {",
+                "        url: `https://music.163.com/song/media/outer/url?id=${musicItem.id}.mp3`,",
+                "    };",
+            ].join("\n"),
+            [
+                "    const candidateUrl = `https://music.163.com/song/media/outer/url?id=${musicItem.id}.mp3`;",
+                "    if (!isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)) {",
+                "        return;",
+                "    }",
+                "    return {",
+                "        url: candidateUrl,",
+                "    };",
+            ].join("\n"),
+            1,
+            "netease media URL validation",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                "    const album = _.al || _.album;",
+                "    return {",
+            ].join("\n"),
+            [
+                "    const album = _.al || _.album;",
+                "    const candidateUrl = `https://music.163.com/song/media/outer/url?id=${_.id}.mp3`;",
+                "    const mediaUrl = isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)",
+                "        ? candidateUrl",
+                "        : undefined;",
+                "    return {",
+            ].join("\n"),
+            1,
+            "netease formatted media URL validation setup",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            "        url: `https://music.163.com/song/media/outer/url?id=${_.id}.mp3`,",
+            "        url: mediaUrl,",
+            1,
+            "netease formatted media URL validation",
+        );
+    } else if (provider.key === "qq") {
+        transformed = injectMediaUrlGuard(transformed, provider);
+        transformed = replaceExpectedCount(
+            transformed,
+            "http://u.y.qq.com",
+            "https://u.y.qq.com",
+            2,
+            "qq u.y.qq.com HTTPS upgrade",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            "http://c.y.qq.com",
+            "https://c.y.qq.com",
+            2,
+            "qq c.y.qq.com HTTPS upgrade",
+        );
         transformed = replaceExpectedCount(
             transformed,
             "%22uin%22%3A123456",
@@ -191,6 +288,25 @@ function transformProviderSource(source, provider) {
             /result\.req_0\.data\.sip\.find\(\(i\) => !i\.startsWith\("http:\/\/ws"\)\) \|\|\s*result\.req_0\.data\.sip\[0\]/u,
             "result.req_0.data.sip[0]",
             "qq legacy media candidate selection",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            [
+                "        return {",
+                "            url: `${domain}${purl}`,",
+                "        };",
+            ].join("\n"),
+            [
+                "        const candidateUrl = `${domain}${purl}`;",
+                "        if (!isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)) {",
+                "            return;",
+                "        }",
+                "        return {",
+                "            url: candidateUrl,",
+                "        };",
+            ].join("\n"),
+            1,
+            "qq media URL validation",
         );
     } else if (provider.key === "kuwo") {
         transformed = transformed.replaceAll("http://", "https://");
@@ -212,6 +328,7 @@ function transformProviderSource(source, provider) {
             "migu protocol-relative artwork constructors",
         );
     }
+    assertNoSensitiveLogging(transformed, provider);
     return transformed;
 }
 
