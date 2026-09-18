@@ -112,6 +112,22 @@ describe("managed NetEase playback", () => {
             });
     });
 
+    it("rejects a raw backslash injected through an item id", async () => {
+        const { plugin } = createPlugin();
+
+        await expect(plugin.getMediaSource({ id: "123\\@relay.invalid" }, "standard"))
+            .resolves.toBeUndefined();
+    });
+
+    it("preserves a percent-encoded backslash in the media path", async () => {
+        const { plugin } = createPlugin();
+
+        await expect(plugin.getMediaSource({ id: "123%5C456" }, "standard"))
+            .resolves.toEqual({
+                url: "https://music.163.com/song/media/outer/url?id=123%5C456.mp3",
+            });
+    });
+
     it("guards the direct media URL projected onto search results", () => {
         expect(NETEASE_MANAGED_PLUGIN.source).toContain(
             "const mediaUrl = isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)",

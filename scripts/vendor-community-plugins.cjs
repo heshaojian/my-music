@@ -157,6 +157,7 @@ function createMediaUrlGuard(allowedHosts) {
         "function isAllowedMediaUrl(value, allowedSuffixes) {",
         '    if (typeof value !== "string") return false;',
         "    if (/[\\s\\u0000-\\u001f\\u007f]/u.test(value)) return false;",
+        '    if (value.includes("\\\\")) return false;',
         "    try {",
         "        const parsed = new URL(value);",
         '        return parsed.protocol === "https:" &&',

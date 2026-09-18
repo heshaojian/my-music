@@ -141,6 +141,39 @@ describe("managed QQ playback", () => {
             });
     });
 
+    it.each([
+        ["https://isure.stream.qqmusic.qq.com/", "M500\\test.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/", "\\relay.invalid/a.mp3"],
+        ["https://isure.stream.qqmusic.qq.com\\@relay.invalid/", "M500test.mp3"],
+        ["https:\\isure.stream.qqmusic.qq.com/", "M500test.mp3"],
+    ])(
+        "rejects raw backslashes across sip and purl",
+        async (domain, purl) => {
+            const request: AxiosCall = jest.fn(async (_config: unknown) => ({
+                data: sourceResponse(domain, purl),
+            }));
+            const { plugin } = createPlugin({ request });
+
+            await expect(plugin.getMediaSource({ songmid: "test" }, "low"))
+                .resolves.toBeUndefined();
+        },
+    );
+
+    it("preserves a percent-encoded backslash in a provider path", async () => {
+        const request: AxiosCall = jest.fn(async (_config: unknown) => ({
+            data: sourceResponse(
+                "https://isure.stream.qqmusic.qq.com/",
+                "folder%5Cname/M500test.mp3",
+            ),
+        }));
+        const { plugin } = createPlugin({ request });
+
+        await expect(plugin.getMediaSource({ songmid: "test" }, "low"))
+            .resolves.toEqual({
+                url: "https://isure.stream.qqmusic.qq.com/folder%5Cname/M500test.mp3",
+            });
+    });
+
     it("does not log response bodies or tokens when the provider fails", async () => {
         const consoleMock = createConsole();
         const request: AxiosCall = jest.fn(async (_config: unknown) => {
