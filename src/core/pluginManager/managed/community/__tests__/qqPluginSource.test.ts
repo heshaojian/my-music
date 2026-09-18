@@ -103,6 +103,44 @@ describe("managed QQ playback", () => {
             .resolves.toBeUndefined();
     });
 
+    it.each([
+        ["https://isure.stream.qqmusic.qq.com/", "M500 test.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/", "M500\ttest.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/", "M500\ntest.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/", "M500\u00a0test.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/", "M500\u0000test.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/", "M500\u001ftest.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/", "M500\u007ftest.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/\n", "M500test.mp3"],
+        ["https://isure.stream.qqmusic.qq.com/\u0000", "M500test.mp3"],
+    ])(
+        "rejects whitespace or control injection across sip and purl",
+        async (domain, purl) => {
+            const request: AxiosCall = jest.fn(async (_config: unknown) => ({
+                data: sourceResponse(domain, purl),
+            }));
+            const { plugin } = createPlugin({ request });
+
+            await expect(plugin.getMediaSource({ songmid: "test" }, "low"))
+                .resolves.toBeUndefined();
+        },
+    );
+
+    it("preserves a valid percent-encoded provider path", async () => {
+        const request: AxiosCall = jest.fn(async (_config: unknown) => ({
+            data: sourceResponse(
+                "https://isure.stream.qqmusic.qq.com/",
+                "folder%20name/M500test.mp3",
+            ),
+        }));
+        const { plugin } = createPlugin({ request });
+
+        await expect(plugin.getMediaSource({ songmid: "test" }, "low"))
+            .resolves.toEqual({
+                url: "https://isure.stream.qqmusic.qq.com/folder%20name/M500test.mp3",
+            });
+    });
+
     it("does not log response bodies or tokens when the provider fails", async () => {
         const consoleMock = createConsole();
         const request: AxiosCall = jest.fn(async (_config: unknown) => {

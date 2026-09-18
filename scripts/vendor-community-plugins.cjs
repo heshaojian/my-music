@@ -155,7 +155,8 @@ function createMediaUrlGuard(allowedHosts) {
     return [
         `const ALLOWED_MEDIA_HOSTS = Object.freeze(${JSON.stringify(allowedHosts)});`,
         "function isAllowedMediaUrl(value, allowedSuffixes) {",
-        '    if (typeof value !== "string" || value.trim() !== value) return false;',
+        '    if (typeof value !== "string") return false;',
+        "    if (/[\\s\\u0000-\\u001f\\u007f]/u.test(value)) return false;",
         "    try {",
         "        const parsed = new URL(value);",
         '        return parsed.protocol === "https:" &&',

@@ -88,6 +88,30 @@ describe("managed NetEase playback", () => {
             .resolves.toBeUndefined();
     });
 
+    it.each([
+        "123 456",
+        "123\t456",
+        "123\n456",
+        "123\u00a0456",
+        "123\u0000456",
+        "123\u001f456",
+        "123\u007f456",
+    ])("rejects whitespace or control injection through an item id", async id => {
+        const { plugin } = createPlugin();
+
+        await expect(plugin.getMediaSource({ id }, "standard"))
+            .resolves.toBeUndefined();
+    });
+
+    it("preserves a valid percent-encoded media path", async () => {
+        const { plugin } = createPlugin();
+
+        await expect(plugin.getMediaSource({ id: "123%20456" }, "standard"))
+            .resolves.toEqual({
+                url: "https://music.163.com/song/media/outer/url?id=123%20456.mp3",
+            });
+    });
+
     it("guards the direct media URL projected onto search results", () => {
         expect(NETEASE_MANAGED_PLUGIN.source).toContain(
             "const mediaUrl = isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)",
