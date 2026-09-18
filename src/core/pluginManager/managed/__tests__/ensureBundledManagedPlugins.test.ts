@@ -23,6 +23,8 @@ describe("bundled managed plugin bootstrap", () => {
         expect(recommendations).toContainEqual({
             platform: "猫耳FM",
             version: "0.1.6-mymusic.1",
+            trust: "official",
+            availability: "bundled",
         });
         expect(recommendations).toHaveLength(BUNDLED_MANAGED_PLUGINS.length);
         expect(recommendations.every(item => !("source" in item))).toBe(true);

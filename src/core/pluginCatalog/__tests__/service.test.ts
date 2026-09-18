@@ -22,6 +22,16 @@ const cachedRecord: CatalogCacheRecord = {
     entries: [entry],
 };
 
+const officialRecommendation = (
+    platform: string,
+    version: string,
+): ManagedPluginRecommendation => ({
+    platform,
+    version,
+    trust: "official",
+    availability: "bundled",
+});
+
 function createDependencies() {
     return {
         transport: {
@@ -59,6 +69,24 @@ describe("plugin catalog service", () => {
             fetchedAt: 100,
             stale: false,
         });
+    });
+
+    it("preserves managed trust, availability, and reason metadata", () => {
+        const dependencies = createDependencies();
+        const recommendation: ManagedPluginRecommendation = {
+            platform: "5sing",
+            trust: "community",
+            availability: "unavailable",
+            reason: "no-safe-source",
+        };
+        dependencies.installer.getManagedPluginRecommendations
+            .mockReturnValue([recommendation]);
+        const service = createPluginCatalogService(dependencies);
+
+        const projected = service.getManagedPluginRecommendations();
+
+        expect(projected).toEqual([recommendation]);
+        expect(projected[0]).not.toBe(recommendation);
     });
 
     it.each([
@@ -139,10 +167,9 @@ describe("plugin catalog service", () => {
 
     it("repairs a managed entry locally without downloading catalog code", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
-            platform: entry.name,
-            version: entry.version,
-        }]);
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            officialRecommendation(entry.name, entry.version),
+        ]);
         const service = createPluginCatalogService(dependencies);
         const managedEntry = {
             ...entry,
@@ -160,10 +187,9 @@ describe("plugin catalog service", () => {
 
     it("uses the validated catalog identity when repairing managed entries", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
-            platform: entry.name,
-            version: entry.version,
-        }]);
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            officialRecommendation(entry.name, entry.version),
+        ]);
         const service = createPluginCatalogService(dependencies);
         const forgedEntry = {
             ...entry,
@@ -184,10 +210,9 @@ describe("plugin catalog service", () => {
 
     it("rejects managed-looking entries with forged display metadata", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
-            platform: entry.name,
-            version: entry.version,
-        }]);
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            officialRecommendation(entry.name, entry.version),
+        ]);
         const service = createPluginCatalogService(dependencies);
         const forgedEntry = {
             ...entry,
@@ -207,10 +232,9 @@ describe("plugin catalog service", () => {
 
     it("redacts managed retry failures from the install result", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
-            platform: entry.name,
-            version: entry.version,
-        }]);
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            officialRecommendation(entry.name, entry.version),
+        ]);
         dependencies.installer.repairManagedPlugin.mockResolvedValue({
             success: false,
             message: "/private/path?token=secret",
@@ -231,10 +255,9 @@ describe("plugin catalog service", () => {
 
     it("redacts thrown managed retry failures from the install result", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
-            platform: entry.name,
-            version: entry.version,
-        }]);
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            officialRecommendation(entry.name, entry.version),
+        ]);
         dependencies.installer.repairManagedPlugin.mockRejectedValue(
             new Error("/private/path?token=secret"),
         );
@@ -254,10 +277,9 @@ describe("plugin catalog service", () => {
 
     it("reconciles every recommendation through one shared local run", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
-            platform: "猫耳FM",
-            version: "0.1.5-mymusic.1",
-        }]);
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            officialRecommendation("猫耳FM", "0.1.5-mymusic.1"),
+        ]);
         let finishRepair: (() => void) | undefined;
         dependencies.installer.repairManagedPlugin.mockImplementation(() =>
             new Promise(resolve => {
@@ -276,10 +298,9 @@ describe("plugin catalog service", () => {
 
     it("returns only provider-scoped managed reconciliation failures", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
-            platform: "猫耳FM",
-            version: "0.1.5-mymusic.1",
-        }]);
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            officialRecommendation("猫耳FM", "0.1.5-mymusic.1"),
+        ]);
         dependencies.installer.repairManagedPlugin.mockResolvedValue({
             success: false,
             message: "/private/path?token=secret",
@@ -293,10 +314,9 @@ describe("plugin catalog service", () => {
 
     it("redacts thrown managed reconciliation failures", async () => {
         const dependencies = createDependencies();
-        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([{
-            platform: "猫耳FM",
-            version: "0.1.5-mymusic.1",
-        }]);
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            officialRecommendation("猫耳FM", "0.1.5-mymusic.1"),
+        ]);
         dependencies.installer.repairManagedPlugin.mockRejectedValue(
             new Error("/private/path?token=secret"),
         );

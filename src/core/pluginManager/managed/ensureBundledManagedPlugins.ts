@@ -12,16 +12,14 @@ import KUAISHOU_MANAGED_PLUGIN from "./kuaishouPluginSource";
 import YINYUETAI_MANAGED_PLUGIN from "./yinyuetaiPluginSource";
 import WEBDAV_MANAGED_PLUGIN from "./webdavPluginSource";
 import { ManagedPluginDescriptor } from "./managedPluginLifecycle";
+import type { ManagedPluginRecommendation } from "@/types/core/pluginManager";
+
+export type { ManagedPluginRecommendation } from "@/types/core/pluginManager";
 
 interface ManagedPluginInstaller {
     ensureManagedPlugin(
         descriptor: ManagedPluginDescriptor,
     ): Promise<unknown>;
-}
-
-export interface ManagedPluginRecommendation {
-    readonly platform: string;
-    readonly version: string;
 }
 
 interface ManagedPluginRepairInstaller {
@@ -70,7 +68,12 @@ export function isBundledManagedPluginPlatform(platform: string) {
 export function getBundledManagedPluginRecommendations():
 readonly ManagedPluginRecommendation[] {
     return BUNDLED_MANAGED_PLUGINS.map(({ platform, version }) =>
-        Object.freeze({ platform, version }));
+        Object.freeze({
+            platform,
+            version,
+            trust: "official",
+            availability: "bundled",
+        }));
 }
 
 export function getBundledManagedPlugin(platform: string) {

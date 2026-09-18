@@ -47,8 +47,7 @@ export function createPluginCatalogService(
 
     const getManagedPluginRecommendations = () =>
         dependencies.installer.getManagedPluginRecommendations().map(item => ({
-            platform: item.platform,
-            version: item.version,
+            ...item,
         }));
 
     const readCacheRecord = () =>

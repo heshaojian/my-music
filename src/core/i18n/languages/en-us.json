@@ -161,6 +161,7 @@
     "pluginLibrary.status.installed": "Installed",
     "pluginLibrary.status.recommendedInstalled": "Installed · Recommended by MyMusic",
     "pluginLibrary.status.restoring": "Restoring",
+    "pluginLibrary.status.unavailable": "Unavailable",
     "pluginLibrary.status.update": "Update available",
     "pluginLibrary.action.install": "Install",
     "pluginLibrary.action.retry": "Retry",

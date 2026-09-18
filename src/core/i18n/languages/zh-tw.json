@@ -161,6 +161,7 @@
     "pluginLibrary.status.installed": "已安裝",
     "pluginLibrary.status.recommendedInstalled": "已安裝 · MyMusic 推薦",
     "pluginLibrary.status.restoring": "正在恢復",
+    "pluginLibrary.status.unavailable": "無法使用",
     "pluginLibrary.status.update": "可更新",
     "pluginLibrary.action.install": "安裝",
     "pluginLibrary.action.retry": "重試",
