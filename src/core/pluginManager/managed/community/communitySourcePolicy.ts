@@ -10,9 +10,12 @@ const DYNAMIC_CODE_PATTERNS = [
     /\bnew\s+Function\b/u,
     /\bFunction\s*\(/u,
 ] as const;
+const PLAINTEXT_HTTP_SCHEME_PATTERN = /["'`]\s*http\s*:/iu;
 const REMOTE_SOURCE_PATTERN = /["']?\bsrcUrl\b["']?\s*:/iu;
 const CREDENTIAL_LITERAL_PATTERN =
     /(?:["']?(?:cookie|(?:[a-z0-9_-]*_)?token|password|secret|api[_-]?key|authorization)["']?)\s*[:=]\s*(["'`])(.*?)\1/giu;
+const UIN_LITERAL_PATTERN =
+    /["']?[a-z0-9_-]*uin["']?\s*[:=]\s*(?:(["'`])(.*?)\1|(\d+))/giu;
 
 function normalizeAllowedHosts(hosts: readonly string[]) {
     return [...new Set(hosts.map(host => host.trim().toLowerCase()))]
@@ -47,16 +50,56 @@ function hasEmbeddedCredential(
     return false;
 }
 
-function hasCredentialInUrl(url: URL) {
+function hasNonAnonymousUinLiteral(source: string) {
+    for (const match of source.matchAll(UIN_LITERAL_PATTERN)) {
+        const literal = match[2] ?? match[3] ?? "";
+        if (literal !== "" && literal !== "0") {
+            return true;
+        }
+    }
+    return false;
+}
+
+function decodeQueryPayload(value: string) {
+    let decoded = value;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+            const next = decodeURIComponent(decoded);
+            if (next === decoded) {
+                break;
+            }
+            decoded = next;
+        } catch {
+            break;
+        }
+    }
+    return decoded;
+}
+
+function hasCredentialInUrl(
+    url: URL,
+    allowedAnonymousLiterals: readonly string[],
+) {
     if (url.username || url.password) {
         return true;
     }
     for (const [key, value] of url.searchParams) {
         if (
+            /uin$/iu.test(key) &&
+            value !== "" &&
+            value !== "0"
+        ) {
+            return true;
+        }
+        if (
             value.length > 0 &&
             /^(?:cookie|(?:[a-z0-9_-]*_)?token|password|secret|api[_-]?key|authorization)$/iu
-                .test(key)
+                .test(key) &&
+            !allowedAnonymousLiterals.includes(value)
         ) {
+            return true;
+        }
+        if (hasNonAnonymousUinLiteral(decodeQueryPayload(value))) {
             return true;
         }
     }
@@ -81,13 +124,16 @@ export function auditCommunityPluginSource(
     }
 
     const urlLiterals = getUrlLiterals(source);
-    if (urlLiterals.some(literal => literal.toLowerCase().startsWith("http://"))) {
+    if (
+        PLAINTEXT_HTTP_SCHEME_PATTERN.test(source) ||
+        urlLiterals.some(literal => literal.toLowerCase().startsWith("http://"))
+    ) {
         reasons.push("plaintext-http");
     }
     let embeddedCredential = hasEmbeddedCredential(
         source,
         allowedAnonymousLiterals,
-    );
+    ) || hasNonAnonymousUinLiteral(source);
     if (embeddedCredential) {
         reasons.push("embedded-credential");
     }
@@ -97,7 +143,10 @@ export function auditCommunityPluginSource(
         try {
             const parsedUrl = new URL(literal);
             const hostname = parsedUrl.hostname;
-            embeddedCredential = embeddedCredential || hasCredentialInUrl(parsedUrl);
+            embeddedCredential = embeddedCredential || hasCredentialInUrl(
+                parsedUrl,
+                allowedAnonymousLiterals,
+            );
             if (!isAllowedHost(hostname, allowedHosts)) {
                 unapprovedHosts.add(hostname.toLowerCase());
             }

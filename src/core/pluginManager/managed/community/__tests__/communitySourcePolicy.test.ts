@@ -127,6 +127,22 @@ describe("community plugin source policy", () => {
             TEST_POLICY,
         )).toContain("embedded-credential");
         expect(auditCommunityPluginSource(
+            "const request = { loginUin: 123456 };",
+            TEST_POLICY,
+        )).toContain("embedded-credential");
+        expect(auditCommunityPluginSource(
+            "axios.get(\"https://example.com/a?uin=123456\")",
+            TEST_POLICY,
+        )).toContain("embedded-credential");
+        expect(auditCommunityPluginSource(
+            "axios.get(\"https://example.com/a?data=%7B%22comm%22%3A%7B%22uin%22%3A123456%7D%7D\")",
+            TEST_POLICY,
+        )).toContain("embedded-credential");
+        expect(auditCommunityPluginSource(
+            "axios.get(\"https://example.com/a?loginUin=0&hostUin=0\")",
+            TEST_POLICY,
+        )).toEqual([]);
+        expect(auditCommunityPluginSource(
             "axios.get(\"https://user:password@example.com/a?token=secret\")",
             TEST_POLICY,
         )).toContain("embedded-credential");
@@ -141,6 +157,14 @@ describe("community plugin source policy", () => {
             "const plugin = { \"SRCURL\": \"https://example.com/a.js\" };",
             TEST_POLICY,
         )).toEqual(["remote-source-url"]);
+        expect(auditCommunityPluginSource(
+            "const artwork = `http:${path}`;",
+            TEST_POLICY,
+        )).toEqual(["plaintext-http"]);
+        expect(auditCommunityPluginSource(
+            "const artwork = \"http:\" + path;",
+            TEST_POLICY,
+        )).toEqual(["plaintext-http"]);
     });
 
     it("does not mutate or alias policy inputs or results", () => {
@@ -177,5 +201,24 @@ describe("vendored community plugin descriptors", () => {
         expect(plugin.instance.version).toBe(descriptor.version);
         expect(plugin.hash).not.toHaveLength(0);
         expect(Object.isFrozen(descriptor)).toBe(true);
+    });
+
+    it("keeps QQ anonymous and Migu artwork HTTPS-only", () => {
+        expect(QQ_MANAGED_PLUGIN.source).not.toContain(
+            "%22uin%22%3A123456",
+        );
+        expect(QQ_MANAGED_PLUGIN.source).toContain("%22uin%22%3A0");
+        expect(auditCommunityPluginSource(QQ_MANAGED_PLUGIN.source, {
+            platform: "QQ音乐",
+            allowedHosts: ["y.qq.com", "gtimg.cn", "qqmusic.qq.com"],
+            allowedAnonymousCredentialLiterals: ["uin="],
+        })).toEqual([]);
+
+        expect(MIGU_MANAGED_PLUGIN.source).not.toContain("`http:${");
+        expect(MIGU_MANAGED_PLUGIN.source).toContain("`https:${");
+        expect(auditCommunityPluginSource(MIGU_MANAGED_PLUGIN.source, {
+            platform: "咪咕",
+            allowedHosts: ["migu.cn"],
+        })).toEqual([]);
     });
 });

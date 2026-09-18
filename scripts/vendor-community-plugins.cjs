@@ -143,6 +143,14 @@ function replaceExactlyOnce(source, pattern, replacement, label) {
     return source.replace(pattern, replacement);
 }
 
+function replaceExpectedCount(source, search, replacement, expectedCount, label) {
+    const actualCount = source.split(search).length - 1;
+    if (actualCount !== expectedCount) {
+        throw new Error(`${label} expected ${expectedCount} matches, found ${actualCount}`);
+    }
+    return source.replaceAll(search, replacement);
+}
+
 function transformCommonSource(source, provider) {
     const withoutSourceUrl = replaceExactlyOnce(
         source,
@@ -171,6 +179,13 @@ function transformProviderSource(source, provider) {
         transformed = transformed
             .replaceAll("http://u.y.qq.com", "https://u.y.qq.com")
             .replaceAll("http://c.y.qq.com", "https://c.y.qq.com");
+        transformed = replaceExpectedCount(
+            transformed,
+            "%22uin%22%3A123456",
+            "%22uin%22%3A0",
+            1,
+            "qq encoded non-anonymous UIN",
+        );
         transformed = replaceExactlyOnce(
             transformed,
             /result\.req_0\.data\.sip\.find\(\(i\) => !i\.startsWith\("http:\/\/ws"\)\) \|\|\s*result\.req_0\.data\.sip\[0\]/u,
@@ -188,6 +203,13 @@ function transformProviderSource(source, provider) {
             /^searchLyric\('夜曲', 1\)\.then\(console\.log\);\s*\r?\n/mu,
             "",
             "migu import-time network request",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
+            "`http:${",
+            "`https:${",
+            2,
+            "migu protocol-relative artwork constructors",
         );
     }
     return transformed;
