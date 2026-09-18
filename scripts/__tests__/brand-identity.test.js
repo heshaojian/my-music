@@ -19,30 +19,36 @@ describe("MyMusic brand identity", () => {
 
         expect(appConfig.name).toBe("MusicFree");
         expect(appConfig.displayName).toBe("MyMusic");
-        expect(read("ios/MusicFree/Info.plist")).toContain(
+        expect(read("ios/MyMusic/Info.plist")).toContain(
             "<key>CFBundleDisplayName</key>\n\t<string>MyMusic</string>",
         );
         expect(read("android/app/src/main/res/values/strings.xml"))
             .toContain('<string name="app_name">MyMusic</string>');
-        expect(read("ios/MusicFree/SplashScreen.storyboard"))
+        expect(read("ios/MyMusic/SplashScreen.storyboard"))
             .toContain('text="MyMusic"');
-        expect(read("ios/MusicFree/LaunchScreen.storyboard"))
+        expect(read("ios/MyMusic/LaunchScreen.storyboard"))
             .toContain('text="MyMusic"');
     });
 
     it("preserves installation and React Native identifiers", () => {
-        expect(read("ios/MusicFree/AppDelegate.mm"))
+        expect(read("ios/MyMusic/AppDelegate.mm"))
             .toContain('self.moduleName = @"MusicFree"');
         expect(read("android/app/src/main/java/fun/upup/musicfree/MainActivity.kt"))
             .toContain('getMainComponentName(): String = "MusicFree"');
         expect(read("android/app/build.gradle"))
             .toContain('applicationId "fun.upup.musicfree"');
-        expect(read("ios/MusicFree.xcodeproj/project.pbxproj"))
+        const project = read("ios/MyMusic.xcodeproj/project.pbxproj");
+        expect(project)
             .toContain("PRODUCT_BUNDLE_IDENTIFIER = com.heshaojian.FreeMusic;");
+        expect(project).toContain("PRODUCT_NAME = MyMusic;");
+        expect(read("ios/MyMusic.xcodeproj/xcshareddata/xcschemes/MyMusic.xcscheme"))
+            .toContain('BuildableName = "MyMusic.app"');
+        expect(read("ios/MyMusic.xcworkspace/contents.xcworkspacedata"))
+            .toContain('location = "group:MyMusic.xcodeproj"');
     });
 
     it("ships a complete opaque iOS icon set from a 1024px master", () => {
-        const iconRoot = "ios/MusicFree/Images.xcassets/AppIcon.appiconset";
+        const iconRoot = "ios/MyMusic/Images.xcassets/AppIcon.appiconset";
         const contents = JSON.parse(read(`${iconRoot}/Contents.json`));
         const expected = new Map([
             ["Icon-20@2x.png", 40],

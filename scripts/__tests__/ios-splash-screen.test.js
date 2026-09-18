@@ -5,13 +5,13 @@ const repositoryRoot = path.resolve(__dirname, "..", "..");
 const storyboardPath = path.join(
     repositoryRoot,
     "ios",
-    "MusicFree",
+    "MyMusic",
     "SplashScreen.storyboard",
 );
 const projectPath = path.join(
     repositoryRoot,
     "ios",
-    "MusicFree.xcodeproj",
+    "MyMusic.xcodeproj",
     "project.pbxproj",
 );
 const podfilePath = path.join(repositoryRoot, "ios", "Podfile");
