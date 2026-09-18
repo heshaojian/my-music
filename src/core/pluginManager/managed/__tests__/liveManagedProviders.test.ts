@@ -20,7 +20,7 @@ import UDIO from "../udioPluginSource";
 import WEBDAV from "../webdavPluginSource";
 import YINYUETAI from "../yinyuetaiPluginSource";
 import YOUTUBE from "../youtubePluginSource";
-import { BUNDLED_MANAGED_PLUGINS } from "../ensureBundledManagedPlugins";
+import { OFFICIAL_MANAGED_PLUGINS } from "../ensureBundledManagedPlugins";
 
 const liveTestsEnabled = process.env.LIVE_MANAGED_PLUGIN_TESTS === "1";
 const livePluginOs = process.env.LIVE_PLUGIN_OS === "android" ? "android" : "ios";
@@ -63,7 +63,7 @@ type RuntimePlugin = {
     getTopListDetail?: (item: any, page?: number) => Promise<any>;
 };
 
-const descriptors: readonly Descriptor[] = BUNDLED_MANAGED_PLUGINS;
+const descriptors: readonly Descriptor[] = OFFICIAL_MANAGED_PLUGINS;
 
 const descriptorByPlatform = new Map(
     descriptors.map(descriptor => [descriptor.platform, descriptor]),
@@ -195,7 +195,7 @@ liveDescribe("live managed provider compatibility", () => {
             .map((plugin: { name: string }) => plugin.name)
             .sort();
         expect(descriptors.map(plugin => plugin.platform).sort()).toEqual(officialNames);
-        expect(descriptors).toBe(BUNDLED_MANAGED_PLUGINS);
+        expect(descriptors).toBe(OFFICIAL_MANAGED_PLUGINS);
     });
 
     it("searches and resolves reachable YouTube audio", async () => {
