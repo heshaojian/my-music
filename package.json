@@ -16,7 +16,7 @@
     "test:unit": "jest",
     "test:coverage": "jest --coverage",
     "build:android:debug": "node scripts/build-android-debug.cjs",
-    "build:ios:simulator": "xcodebuild -workspace ios/MusicFree.xcworkspace -scheme MusicFreeNew -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build",
+    "build:ios:simulator": "xcodebuild -workspace ios/MyMusic.xcworkspace -scheme MyMusic -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build",
     "start": "react-native start",
     "clean": "cd ./android && ./gradlew clean",
     "test": "jest",
