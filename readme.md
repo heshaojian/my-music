@@ -4,9 +4,10 @@ Private development fork of [MusicFree](https://github.com/maotoumao/MusicFree),
 
 ## Plugins
 
-Official and reviewed community defaults are restored from local, pinned source
-at startup. Community entries without a safe distributable source are shown for
-transparency but execute no code. See the
+Official defaults and community providers that pass current live safety checks
+are restored from local, pinned source at startup. Rejected community identities
+remain visible for transparency, but cannot be installed, repaired, or executed.
+See the
 [community plugin provenance](./docs/community-plugin-provenance.md) for source,
 license, review, and availability details.
 

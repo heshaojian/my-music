@@ -30,10 +30,7 @@ type ProviderCase = {
 
 const providerCases: readonly ProviderCase[] = Object.freeze([
     { platform: "网易云", query: "音乐", allowedHosts: ["music.163.com", "music.126.net"] },
-    { platform: "QQ音乐", query: "音乐", allowedHosts: ["y.qq.com", "gtimg.cn", "qqmusic.qq.com"] },
     { platform: "酷我", query: "音乐", allowedHosts: ["kuwo.cn"] },
-    { platform: "咪咕", query: "音乐", allowedHosts: ["migu.cn"] },
-    { platform: "喜马拉雅", query: "故事", allowedHosts: ["ximalaya.com", "xmcdn.com"] },
 ]);
 
 function replaceProcessEnvironment(values: NodeJS.ProcessEnv) {

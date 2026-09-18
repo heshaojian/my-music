@@ -28,5 +28,11 @@ describe("community plugin provenance", () => {
         expect(document).toContain("failed valid HTTPS certificate checks");
         expect(document).toContain("lacked a distributable license");
         expect(document).toContain("plaintext third-party signing relay");
+        expect(document).toContain(
+            "live search worked, but no standard HTTPS playback URL",
+        );
+        expect(document.match(/2026-09-17 live search failed/g)).toHaveLength(2);
+        expect(document.match(/not registered for app execution or repairable/g))
+            .toHaveLength(3);
     });
 });
