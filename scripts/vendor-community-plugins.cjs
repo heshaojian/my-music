@@ -382,6 +382,13 @@ function transformProviderSource(source, provider) {
         );
         transformed = replaceExpectedCount(
             transformed,
+            "(https?:\\/\\/c\\.migu\\.cn\\/[\\S]+)\\?",
+            "(https:\\/\\/c\\.migu\\.cn\\/[\\S]+)\\?",
+            1,
+            "migu share URL HTTPS restriction",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
             [
                 "function musicCanPlayFilter(_) {",
                 "    return _.mp3 || _.listenUrl || _.lisQq || _.lisCr;",
@@ -446,14 +453,31 @@ function transformProviderSource(source, provider) {
         transformed = injectMediaUrlGuard(transformed, provider);
         transformed = replaceExpectedCount(
             transformed,
+            'const CryptoJs = require("crypto-js");\n',
+            "",
+            1,
+            "ximalaya crypto dependency removal",
+        );
+        transformed = replaceExpectedCount(
+            transformed,
             [
+                "    const trackInfo = info.trackInfo;",
+                "    const { playUrlList } = trackInfo;",
+                "    const encodeText = playUrlList[0].url;",
+                "    const url = CryptoJs.AES.decrypt({",
+                "        ciphertext: CryptoJs.enc.Base64url.parse(encodeText),",
+                '    }, CryptoJs.enc.Hex.parse("aaad3e4fd540b0f79dca95606e72bf93"), {',
+                "        mode: CryptoJs.mode.ECB,",
+                "        padding: CryptoJs.pad.Pkcs7,",
                 "    }).toString(CryptoJs.enc.Utf8);",
                 "    return {",
                 "        url,",
                 "    };",
             ].join("\n"),
             [
-                "    }).toString(CryptoJs.enc.Utf8);",
+                "    const trackInfo = info.trackInfo;",
+                "    const { playUrlList } = trackInfo;",
+                "    const url = playUrlList && playUrlList[0] && playUrlList[0].url;",
                 "    if (!isAllowedMediaUrl(url, ALLOWED_MEDIA_HOSTS)) {",
                 "        return;",
                 "    }",

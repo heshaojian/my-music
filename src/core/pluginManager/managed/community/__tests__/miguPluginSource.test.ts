@@ -8,12 +8,19 @@ type Plugin = {
         item: { copyrightId: string; url?: string },
         quality: string,
     ): Promise<{ url: string } | undefined>;
+    importMusicSheet(url: string): Promise<unknown>;
 };
 
 function createPlugin(mediaUrl: string, vipFlag = 0) {
     const requests: string[] = [];
     const get = jest.fn(async (url: string) => {
         requests.push(url);
+        if (url.startsWith("https://c.migu.cn/")) {
+            return { request: { path: "/share?id=123" } };
+        }
+        if (url.includes("query_playlist_by_id_tag")) {
+            return { data: { rsp: { playList: [{ contentCount: "0" }] } } };
+        }
         if (url.includes("scr_search_tag")) {
             return {
                 data: {
@@ -103,5 +110,22 @@ describe("managed Migu boundaries", () => {
 
         await expect(plugin.search("test", 1, "music"))
             .resolves.toEqual(expect.objectContaining({ data: [] }));
+    });
+
+    it("rejects an HTTP c.migu.cn share URL without making a request", async () => {
+        const { plugin, requests } = createPlugin("https://freetyst.nf.migu.cn/audio.mp3");
+
+        await expect(plugin.importMusicSheet("http://c.migu.cn/share?x=1?"))
+            .resolves.toBeUndefined();
+        expect(requests).toEqual([]);
+    });
+
+    it("accepts an HTTPS c.migu.cn share URL and keeps every request HTTPS", async () => {
+        const { plugin, requests } = createPlugin("https://freetyst.nf.migu.cn/audio.mp3");
+
+        await expect(plugin.importMusicSheet("https://c.migu.cn/share?x=1?"))
+            .resolves.toBeUndefined();
+        expect(requests.length).toBeGreaterThan(0);
+        requests.forEach(expectApprovedUrl);
     });
 });

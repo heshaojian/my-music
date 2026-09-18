@@ -15,26 +15,14 @@ function createPlugin(mediaUrl: string) {
         if (url.includes("revision/search/main")) {
             return { data: { data: { track: { totalPage: 1, docs: [] } } } };
         }
-        return { data: { trackInfo: { playUrlList: [{ url: "encoded" }] } } };
+        return { data: { trackInfo: { playUrlList: [{ url: mediaUrl }] } } };
     });
     const axios = { get };
-    const crypto = {
-        AES: { decrypt: () => ({ toString: () => mediaUrl }) },
-        enc: {
-            Base64url: { parse: (value: string) => value },
-            Hex: { parse: (value: string) => value },
-            Utf8: "utf8",
-        },
-        mode: { ECB: "ecb" },
-        pad: { Pkcs7: "pkcs7" },
-    };
     const module = { exports: {} as Plugin };
     // eslint-disable-next-line no-new-func
     const factory = Function("require", "module", "exports", "URL", XIMALAYA_MANAGED_PLUGIN.source);
     factory(
-        (name: string) => name === "axios"
-            ? { default: axios }
-            : crypto,
+        (name: string) => name === "axios" ? { default: axios } : {},
         module,
         module.exports,
         URL,
@@ -66,6 +54,9 @@ describe("managed Ximalaya boundaries", () => {
     });
 
     it.each([
+        "encoded-ciphertext-not-a-url",
+        "ZW5jb2RlZC1jaXBoZXJ0ZXh0Cg==",
+        "deadbeefcafebabefeedface",
         "http://audiopay.cos.tx.xmcdn.com/audio.m4a",
         "https://relay.invalid/audio.m4a",
         "https://user:password@audiopay.cos.tx.xmcdn.com/audio.m4a",
@@ -81,5 +72,13 @@ describe("managed Ximalaya boundaries", () => {
 
         await expect(plugin.getMediaSource({ id: "1" }, "standard"))
             .resolves.toBeUndefined();
+    });
+
+    it("contains no decryption code or embedded key", () => {
+        expect(XIMALAYA_MANAGED_PLUGIN.source).not.toContain("AES.decrypt");
+        expect(XIMALAYA_MANAGED_PLUGIN.source).not.toContain(
+            "aaad3e4fd540b0f79dca95606e72bf93",
+        );
+        expect(XIMALAYA_MANAGED_PLUGIN.source).not.toContain("require(\"crypto-js\")");
     });
 });
