@@ -128,6 +128,35 @@ describe("managed NetEase playback", () => {
             });
     });
 
+    it.each([
+        "bad%",
+        "bad%2",
+        "bad%GG",
+        "bad\"quote",
+        "bad<less",
+        "bad>greater",
+        "bad^caret",
+        "bad`backtick",
+        "bad{open",
+        "bad}close",
+        "bad|pipe",
+    ])("rejects malformed escapes or raw-forbidden URL characters", async id => {
+        const { plugin } = createPlugin();
+
+        await expect(plugin.getMediaSource({ id }, "standard"))
+            .resolves.toBeUndefined();
+    });
+
+    it("preserves encoded forbidden characters and normal URL punctuation", async () => {
+        const { plugin } = createPlugin();
+        const id = "%22%3C%3E%5E%60%7B%7D%7C%5C%25-._~!$&()*+,;=:@";
+
+        await expect(plugin.getMediaSource({ id }, "standard"))
+            .resolves.toEqual({
+                url: `https://music.163.com/song/media/outer/url?id=${id}.mp3`,
+            });
+    });
+
     it("guards the direct media URL projected onto search results", () => {
         expect(NETEASE_MANAGED_PLUGIN.source).toContain(
             "const mediaUrl = isAllowedMediaUrl(candidateUrl, ALLOWED_MEDIA_HOSTS)",

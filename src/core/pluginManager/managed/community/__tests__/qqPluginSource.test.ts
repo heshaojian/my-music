@@ -174,6 +174,50 @@ describe("managed QQ playback", () => {
             });
     });
 
+    it.each([
+        "bad%",
+        "bad%2",
+        "bad%GG",
+        "bad\"quote",
+        "bad<less",
+        "bad>greater",
+        "bad^caret",
+        "bad`backtick",
+        "bad{open",
+        "bad}close",
+        "bad|pipe",
+    ])(
+        "rejects malformed escapes or raw-forbidden purl characters",
+        async purl => {
+            const request: AxiosCall = jest.fn(async (_config: unknown) => ({
+                data: sourceResponse(
+                    "https://isure.stream.qqmusic.qq.com/",
+                    purl,
+                ),
+            }));
+            const { plugin } = createPlugin({ request });
+
+            await expect(plugin.getMediaSource({ songmid: "test" }, "low"))
+                .resolves.toBeUndefined();
+        },
+    );
+
+    it("preserves encoded forbidden characters and normal URL punctuation", async () => {
+        const purl = "%22%3C%3E%5E%60%7B%7D%7C%5C%25-._~!$&()*+,;=:@/M500.mp3?x=1#fragment";
+        const request: AxiosCall = jest.fn(async (_config: unknown) => ({
+            data: sourceResponse(
+                "https://isure.stream.qqmusic.qq.com/",
+                purl,
+            ),
+        }));
+        const { plugin } = createPlugin({ request });
+
+        await expect(plugin.getMediaSource({ songmid: "test" }, "low"))
+            .resolves.toEqual({
+                url: `https://isure.stream.qqmusic.qq.com/${purl}`,
+            });
+    });
+
     it("does not log response bodies or tokens when the provider fails", async () => {
         const consoleMock = createConsole();
         const request: AxiosCall = jest.fn(async (_config: unknown) => {
