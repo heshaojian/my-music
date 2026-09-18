@@ -26,16 +26,42 @@ describe("bundled managed plugin bootstrap", () => {
             trust: "official",
             availability: "bundled",
         });
-        expect(recommendations).toHaveLength(BUNDLED_MANAGED_PLUGINS.length);
+        expect(recommendations).toHaveLength(BUNDLED_MANAGED_PLUGINS.length + 3);
+        expect(recommendations).toContainEqual({
+            platform: "网易云",
+            version: "0.2.4-mymusic.1",
+            trust: "community",
+            availability: "bundled",
+        });
+        expect(recommendations).toContainEqual({
+            platform: "5sing",
+            trust: "community",
+            availability: "unavailable",
+            reason: "no-safe-source",
+        });
         expect(recommendations.every(item => !("source" in item))).toBe(true);
         expect(recommendations.every(Object.isFrozen)).toBe(true);
         expect(getBundledManagedPluginRecommendations())
             .not.toBe(recommendations);
+        expect(recommendations.slice(-8).map(item => item.platform)).toEqual([
+            "网易云",
+            "QQ音乐",
+            "酷我",
+            "咪咕",
+            "喜马拉雅",
+            "5sing",
+            "酷狗",
+            "汽水音乐",
+        ]);
     });
 
     it("reserves bundled provider identities from third-party replacement", () => {
         expect(isBundledManagedPluginPlatform("Youtube")).toBe(true);
         expect(isBundledManagedPluginPlatform("快手")).toBe(true);
+        expect(isBundledManagedPluginPlatform("网易云")).toBe(true);
+        expect(isBundledManagedPluginPlatform("5sing")).toBe(true);
+        expect(isBundledManagedPluginPlatform("酷狗")).toBe(true);
+        expect(isBundledManagedPluginPlatform("汽水音乐")).toBe(true);
         expect(isBundledManagedPluginPlatform("Spotify")).toBe(false);
     });
 
@@ -46,6 +72,7 @@ describe("bundled managed plugin bootstrap", () => {
         });
         expect(getBundledManagedPlugin("猫耳fm")).toBeUndefined();
         expect(getBundledManagedPlugin("unknown")).toBeUndefined();
+        expect(getBundledManagedPlugin("5sing")).toBeUndefined();
     });
 
     it("repairs an exact bundled provider and returns its installed identity", async () => {
@@ -75,6 +102,41 @@ describe("bundled managed plugin bootstrap", () => {
         expect(manager.ensureManagedPlugin).not.toHaveBeenCalled();
     });
 
+    it("never repairs an unavailable reserved community provider", async () => {
+        const manager = { ensureManagedPlugin: jest.fn() };
+
+        await expect(repairBundledManagedPlugin(manager, "5sing"))
+            .resolves.toEqual({
+                success: false,
+                message: "Managed plugin is unavailable",
+            });
+        expect(manager.ensureManagedPlugin).not.toHaveBeenCalled();
+    });
+
+    it("isolates a community failure and continues with the next provider", async () => {
+        const qq = BUNDLED_MANAGED_PLUGINS.find(
+            item => item.platform === "QQ音乐",
+        )!;
+        const kuwo = BUNDLED_MANAGED_PLUGINS.find(
+            item => item.platform === "酷我",
+        )!;
+        const manager = {
+            ensureManagedPlugin: jest.fn()
+                .mockRejectedValueOnce(new Error("private provider response"))
+                .mockResolvedValueOnce({ status: "installed", plugin: {} }),
+        };
+
+        await ensureBundledManagedPlugins(manager, [qq, kuwo]);
+
+        expect(manager.ensureManagedPlugin.mock.calls).toEqual([[qq], [kuwo]]);
+        expect(errorLog).toHaveBeenCalledWith(
+            "Managed plugin setup failed",
+            { platform: "QQ音乐", trust: "community" },
+        );
+        expect(JSON.stringify((errorLog as jest.Mock).mock.calls))
+            .not.toContain("private provider response");
+    });
+
     it("redacts managed repair failures", async () => {
         const manager = {
             ensureManagedPlugin: jest.fn().mockRejectedValue(
@@ -92,7 +154,7 @@ describe("bundled managed plugin bootstrap", () => {
             .not.toContain("secret");
     });
 
-    it("registers every official provider as a managed default", async () => {
+    it("registers official providers followed by audited community defaults", async () => {
         const manager = {
             ensureManagedPlugin: jest.fn().mockResolvedValue({
                 status: "unchanged",
@@ -117,6 +179,11 @@ describe("bundled managed plugin bootstrap", () => {
             "快手",
             "音悦台",
             "WebDAV",
+            "网易云",
+            "QQ音乐",
+            "酷我",
+            "咪咕",
+            "喜马拉雅",
         ]);
         expect(manager.ensureManagedPlugin.mock.calls.map(
             ([managedDescriptor]) => [
@@ -136,6 +203,11 @@ describe("bundled managed plugin bootstrap", () => {
             ["快手", "0.0.5-mymusic.1"],
             ["音悦台", "0.0.3-mymusic.1"],
             ["WebDAV", "0.0.3-mymusic.1"],
+            ["网易云", "0.2.4-mymusic.1"],
+            ["QQ音乐", "0.2.3-mymusic.1"],
+            ["酷我", "0.1.8-mymusic.1"],
+            ["咪咕", "0.2.3-mymusic.1"],
+            ["喜马拉雅", "0.1.7-mymusic.1"],
         ]);
     });
 
@@ -219,13 +291,17 @@ describe("bundled managed plugin bootstrap", () => {
 
         expect(errorLog).toHaveBeenCalledWith(
             "Managed plugin setup failed",
-            { platform: "bilibili" },
+            { platform: "bilibili", trust: "official" },
         );
         expect(errorLog).toHaveBeenCalledWith(
             "Managed plugin setup failed",
-            { platform: "Audiomack" },
+            { platform: "Audiomack", trust: "official" },
         );
-        expect(errorLog).toHaveBeenCalledTimes(12);
+        expect(errorLog).toHaveBeenCalledWith(
+            "Managed plugin setup failed",
+            { platform: "QQ音乐", trust: "community" },
+        );
+        expect(errorLog).toHaveBeenCalledTimes(17);
         expect(errorLog).not.toHaveBeenCalledWith(
             expect.anything(),
             expect.objectContaining({ error: failure }),

@@ -156,4 +156,51 @@ describe("CatalogPluginItem", () => {
         expect(screen.getByLabelText("pluginLibrary.status.recommendedInstalled")
             .props.accessibilityState.disabled).toBe(true);
     });
+
+    it("labels an installed community plugin without an action", () => {
+        const screen = render(
+            <CatalogPluginItem
+                item={{
+                    ...availableItem,
+                    name: "网易云",
+                    managed: true,
+                    managedTrust: "community",
+                    managedAvailability: "bundled",
+                    status: "installed",
+                }}
+                busy={false}
+                onInstall={jest.fn()} />,
+        );
+
+        expect(screen.getByText(
+            "1.0.0 - plugins.example.com - pluginLibrary.status.communityInstalled",
+        )).toBeTruthy();
+        expect(screen.getByLabelText("pluginLibrary.status.communityInstalled")
+            .props.accessibilityState.disabled).toBe(true);
+    });
+
+    it("renders unavailable community providers without an enabled action", () => {
+        const onInstall = jest.fn();
+        const screen = render(
+            <CatalogPluginItem
+                item={{
+                    ...availableItem,
+                    name: "5sing",
+                    managed: true,
+                    managedTrust: "community",
+                    managedAvailability: "unavailable",
+                    status: "unavailable",
+                }}
+                busy={false}
+                onInstall={onInstall} />,
+        );
+
+        const label = "pluginLibrary.status.communityUnavailable · pluginLibrary.reason.noSafeSource";
+        expect(screen.getByText(`1.0.0 - plugins.example.com - ${label}`))
+            .toBeTruthy();
+        const button = screen.getByLabelText(label);
+        expect(button.props.accessibilityState.disabled).toBe(true);
+        fireEvent.press(button);
+        expect(onInstall).not.toHaveBeenCalled();
+    });
 });

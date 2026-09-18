@@ -296,6 +296,60 @@ describe("plugin catalog service", () => {
         expect(dependencies.installer.installPluginFromUrl).not.toHaveBeenCalled();
     });
 
+    it("never reconciles unavailable community recommendations", async () => {
+        const dependencies = createDependencies();
+        dependencies.installer.getManagedPluginRecommendations.mockReturnValue([
+            {
+                platform: "网易云",
+                version: "0.2.4-mymusic.1",
+                trust: "community",
+                availability: "bundled",
+            },
+            {
+                platform: "5sing",
+                trust: "community",
+                availability: "unavailable",
+                reason: "no-safe-source",
+            },
+        ]);
+        const service = createPluginCatalogService(dependencies);
+
+        await expect(service.reconcileManagedRecommendations()).resolves.toEqual({});
+
+        expect(dependencies.installer.repairManagedPlugin)
+            .toHaveBeenCalledTimes(1);
+        expect(dependencies.installer.repairManagedPlugin)
+            .toHaveBeenCalledWith("网易云");
+        expect(dependencies.installer.repairManagedPlugin)
+            .not.toHaveBeenCalledWith("5sing");
+    });
+
+    it("rejects unavailable managed entries without network or repair", async () => {
+        const dependencies = createDependencies();
+        const recommendation: ManagedPluginRecommendation = {
+            platform: "5sing",
+            trust: "community",
+            availability: "unavailable",
+            reason: "no-safe-source",
+        };
+        dependencies.installer.getManagedPluginRecommendations
+            .mockReturnValue([recommendation]);
+        const service = createPluginCatalogService(dependencies);
+
+        await expect(service.install({
+            id: "managed-plugin:5sing",
+            name: "5sing",
+            version: "Unavailable",
+            url: "managed-plugin:5sing",
+            host: "Community",
+        })).resolves.toEqual({
+            success: false,
+            message: "Managed plugin is unavailable",
+        });
+        expect(dependencies.installer.repairManagedPlugin).not.toHaveBeenCalled();
+        expect(dependencies.installer.installPluginFromUrl).not.toHaveBeenCalled();
+    });
+
     it("returns only provider-scoped managed reconciliation failures", async () => {
         const dependencies = createDependencies();
         dependencies.installer.getManagedPluginRecommendations.mockReturnValue([

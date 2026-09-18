@@ -237,4 +237,24 @@ describe("usePluginCatalog", () => {
             result.current.installing["managed-plugin:猫耳FM"],
         ).toBe(false));
     });
+
+    it("does not show unavailable recommendations as restoring", async () => {
+        const recommendation = {
+            platform: "5sing",
+            trust: "community",
+            availability: "unavailable",
+            reason: "no-safe-source",
+        };
+        mockGetManagedPluginRecommendations.mockReturnValue([recommendation]);
+        mockBuildCatalogViewItems.mockReturnValue([{
+            id: "managed-plugin:5sing",
+            name: "5sing",
+        }]);
+
+        const { result } = renderHook(() => usePluginCatalog());
+
+        await waitFor(() => expect(result.current.refreshing).toBe(false));
+        expect(result.current.installing["managed-plugin:5sing"])
+            .toBeUndefined();
+    });
 });

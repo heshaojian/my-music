@@ -13,6 +13,10 @@ import YINYUETAI_MANAGED_PLUGIN from "./yinyuetaiPluginSource";
 import WEBDAV_MANAGED_PLUGIN from "./webdavPluginSource";
 import { ManagedPluginDescriptor } from "./managedPluginLifecycle";
 import type { ManagedPluginRecommendation } from "@/types/core/pluginManager";
+import {
+    COMMUNITY_MANAGED_PLUGINS,
+    UNAVAILABLE_COMMUNITY_RECOMMENDATIONS,
+} from "./community/communityPluginRegistry";
 
 export type { ManagedPluginRecommendation } from "@/types/core/pluginManager";
 
@@ -38,11 +42,8 @@ type ManagedPluginFailureHandler = (
     error: unknown,
 ) => void;
 
-const reportManagedPluginFailure: ManagedPluginFailureHandler = platform => {
-    errorLog("Managed plugin setup failed", { platform });
-};
-
-export const BUNDLED_MANAGED_PLUGINS: readonly ManagedPluginDescriptor[] = [
+export const OFFICIAL_MANAGED_PLUGINS: readonly ManagedPluginDescriptor[] =
+Object.freeze([
     BILIBILI_MANAGED_PLUGIN,
     AUDIOMACK_MANAGED_PLUGIN,
     YOUTUBE_MANAGED_PLUGIN,
@@ -55,10 +56,32 @@ export const BUNDLED_MANAGED_PLUGINS: readonly ManagedPluginDescriptor[] = [
     KUAISHOU_MANAGED_PLUGIN,
     YINYUETAI_MANAGED_PLUGIN,
     WEBDAV_MANAGED_PLUGIN,
-];
+]);
+
+export const BUNDLED_MANAGED_PLUGINS: readonly ManagedPluginDescriptor[] =
+Object.freeze([
+    ...OFFICIAL_MANAGED_PLUGINS,
+    ...COMMUNITY_MANAGED_PLUGINS,
+]);
+
+const COMMUNITY_MANAGED_PLATFORMS = new Set(
+    COMMUNITY_MANAGED_PLUGINS.map(plugin => plugin.platform),
+);
+
+const reportManagedPluginFailure: ManagedPluginFailureHandler = platform => {
+    errorLog("Managed plugin setup failed", {
+        platform,
+        trust: COMMUNITY_MANAGED_PLATFORMS.has(platform)
+            ? "community"
+            : "official",
+    });
+};
 
 const BUNDLED_MANAGED_PLATFORMS = new Set(
-    BUNDLED_MANAGED_PLUGINS.map(plugin => plugin.platform),
+    [
+        ...BUNDLED_MANAGED_PLUGINS.map(plugin => plugin.platform),
+        ...UNAVAILABLE_COMMUNITY_RECOMMENDATIONS.map(item => item.platform),
+    ],
 );
 
 export function isBundledManagedPluginPlatform(platform: string) {
@@ -67,13 +90,19 @@ export function isBundledManagedPluginPlatform(platform: string) {
 
 export function getBundledManagedPluginRecommendations():
 readonly ManagedPluginRecommendation[] {
-    return BUNDLED_MANAGED_PLUGINS.map(({ platform, version }) =>
-        Object.freeze({
-            platform,
-            version,
-            trust: "official",
-            availability: "bundled",
-        }));
+    return [
+        ...BUNDLED_MANAGED_PLUGINS.map(({ platform, version }) =>
+            Object.freeze({
+                platform,
+                version,
+                trust: COMMUNITY_MANAGED_PLATFORMS.has(platform)
+                    ? "community" as const
+                    : "official" as const,
+                availability: "bundled",
+            })),
+        ...UNAVAILABLE_COMMUNITY_RECOMMENDATIONS.map(item =>
+            Object.freeze({ ...item })),
+    ];
 }
 
 export function getBundledManagedPlugin(platform: string) {

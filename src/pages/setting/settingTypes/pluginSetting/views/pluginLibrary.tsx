@@ -27,6 +27,10 @@ export default function PluginLibrary() {
     const catalog = usePluginCatalog();
 
     const install = (item: CatalogViewItem) => {
+        if (item.status === "unavailable" ||
+            item.managedAvailability === "unavailable") {
+            return;
+        }
         if (item.managed) {
             catalog.install(item);
             return;

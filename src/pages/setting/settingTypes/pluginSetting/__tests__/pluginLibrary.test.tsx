@@ -145,6 +145,26 @@ describe("PluginLibrary", () => {
         expect(mockInstall).toHaveBeenCalledWith(managedItem);
     });
 
+    it("never invokes installation for unavailable managed providers", () => {
+        const unavailableItem = {
+            ...item,
+            name: "5sing",
+            managed: true,
+            managedAvailability: "unavailable",
+            status: "unavailable",
+        };
+        mockCatalogState = {
+            ...mockCatalogState,
+            items: [unavailableItem],
+        };
+        const screen = render(<PluginLibrary />);
+
+        fireEvent.press(screen.getByLabelText("install-5sing"));
+
+        expect(mockShowDialog).not.toHaveBeenCalled();
+        expect(mockInstall).not.toHaveBeenCalled();
+    });
+
     it("shows cached and retryable failure states", () => {
         mockCatalogState = {
             ...mockCatalogState,

@@ -122,6 +122,15 @@ export function createPluginCatalogService(
                     candidate.url === entry.url,
                 );
             if (approvedManagedEntry) {
+                const recommendation = getManagedPluginRecommendations().find(
+                    item => item.platform === approvedManagedEntry.name,
+                );
+                if (recommendation?.availability === "unavailable") {
+                    return {
+                        success: false,
+                        message: "Managed plugin is unavailable",
+                    };
+                }
                 try {
                     const result = await dependencies.installer
                         .repairManagedPlugin(approvedManagedEntry.name);
@@ -170,6 +179,9 @@ export function createPluginCatalogService(
             managedReconciliation = (async () => {
                 const failures: Record<string, string> = {};
                 for (const recommendation of getManagedPluginRecommendations()) {
+                    if (recommendation.availability !== "bundled") {
+                        continue;
+                    }
                     try {
                         const result = await dependencies.installer
                             .repairManagedPlugin(recommendation.platform);

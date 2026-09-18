@@ -42,9 +42,11 @@ export default function usePluginCatalog() {
         if (recommendations.length === 0) {
             return;
         }
-        const managedIds = recommendations.map(
-            item => `managed-plugin:${item.platform}`,
-        );
+        const managedIds = recommendations
+            .filter(item => item.availability !== "unavailable")
+            .map(
+                item => `managed-plugin:${item.platform}`,
+            );
         setInstalling(current => ({
             ...current,
             ...Object.fromEntries(managedIds.map(id => [id, true])),

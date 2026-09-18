@@ -206,6 +206,9 @@ export interface ILanguageData {
     "pluginLibrary.status.available": string;
     "pluginLibrary.status.installed": string;
     "pluginLibrary.status.recommendedInstalled": string;
+    "pluginLibrary.status.communityInstalled": string;
+    "pluginLibrary.status.communityUnavailable": string;
+    "pluginLibrary.reason.noSafeSource": string;
     "pluginLibrary.status.restoring": string;
     "pluginLibrary.status.unavailable": string;
     "pluginLibrary.status.update": string;

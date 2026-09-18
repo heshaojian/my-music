@@ -21,13 +21,19 @@ export default function CatalogPluginItem({
     onInstall,
 }: CatalogPluginItemProps) {
     const { t } = useI18N();
+    const unavailable = item.managedAvailability === "unavailable" ||
+        item.status === "unavailable";
     const managedInstalled = item.managed && item.status === "installed" && !error;
-    const statusText = managedInstalled
-        ? t("pluginLibrary.status.recommendedInstalled")
-        : item.managed
-            ? t("pluginLibrary.status.restoring")
-            : t(`pluginLibrary.status.${item.status}`);
-    const actionText = item.managed && error
+    const statusText = unavailable
+        ? `${t("pluginLibrary.status.communityUnavailable")} · ${t("pluginLibrary.reason.noSafeSource")}`
+        : managedInstalled && item.managedTrust === "community"
+            ? t("pluginLibrary.status.communityInstalled")
+            : managedInstalled
+                ? t("pluginLibrary.status.recommendedInstalled")
+                : item.managed
+                    ? t("pluginLibrary.status.restoring")
+                    : t(`pluginLibrary.status.${item.status}`);
+    const actionText = item.managed && error && !unavailable
         ? t("pluginLibrary.action.retry")
         : item.managed
             ? statusText
@@ -37,7 +43,8 @@ export default function CatalogPluginItem({
                     ? statusText
                     : t("pluginLibrary.action.install");
 
-    const disabled = busy || (item.managed ? !error : item.status === "installed");
+    const disabled = unavailable || busy ||
+        (item.managed ? !error : item.status === "installed");
 
     return (
         <ListItem withHorizontalPadding heightType="big">
@@ -48,7 +55,7 @@ export default function CatalogPluginItem({
                         <ThemeText fontSize="description" fontColor="textSecondary">
                             {`${item.version} - ${item.host} - ${statusText}`}
                         </ThemeText>
-                        {error ? (
+                        {error && !unavailable ? (
                             <ThemeText
                                 numberOfLines={1}
                                 fontSize="description"
