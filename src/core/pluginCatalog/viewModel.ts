@@ -2,13 +2,17 @@ import type {
     CatalogEntry,
     CatalogEntryStatus,
     InstalledPluginSnapshot,
+    ManagedPluginAvailability,
     ManagedPluginRecommendation,
+    ManagedPluginTrust,
 } from "./types";
 import { getCatalogEntryStatus } from "./status";
 import { filterCatalogEntries } from "./validation";
 
 export type CatalogViewItem = CatalogEntry & {
     managed: boolean;
+    managedTrust?: ManagedPluginTrust;
+    managedAvailability?: ManagedPluginAvailability;
     status: CatalogEntryStatus;
 };
 
@@ -18,9 +22,9 @@ export function createManagedCatalogEntry(
     return {
         id: `managed-plugin:${recommendation.platform}`,
         name: recommendation.platform,
-        version: recommendation.version,
+        version: recommendation.version ?? "Unavailable",
         url: `managed-plugin:${encodeURIComponent(recommendation.platform)}`,
-        host: "MyMusic",
+        host: recommendation.trust === "community" ? "Community" : "MyMusic",
     };
 }
 
@@ -30,16 +34,28 @@ export function buildCatalogViewItems(
     query: string,
     recommendations: readonly ManagedPluginRecommendation[] = [],
 ): CatalogViewItem[] {
-    const managedNames = new Set(recommendations.map(item => item.platform));
+    const managedByName = new Map(
+        recommendations.map(item => [item.platform, item] as const),
+    );
     const managedEntries = recommendations.map(createManagedCatalogEntry);
-    const remoteEntries = entries.filter(entry => !managedNames.has(entry.name));
+    const remoteEntries = entries.filter(entry => !managedByName.has(entry.name));
 
     return filterCatalogEntries(
         [...managedEntries, ...remoteEntries],
         query,
-    ).map(entry => ({
-        ...entry,
-        managed: managedNames.has(entry.name),
-        status: getCatalogEntryStatus(entry, installedPlugins),
-    }));
+    ).map(entry => {
+        const recommendation = managedByName.get(entry.name);
+
+        return {
+            ...entry,
+            managed: recommendation !== undefined,
+            ...(recommendation === undefined ? {} : {
+                managedTrust: recommendation.trust,
+                managedAvailability: recommendation.availability,
+            }),
+            status: recommendation?.availability === "unavailable"
+                ? "unavailable"
+                : getCatalogEntryStatus(entry, installedPlugins),
+        };
+    });
 }

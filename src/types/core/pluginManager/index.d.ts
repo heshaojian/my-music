@@ -30,6 +30,17 @@ export interface IManagedPluginDescriptor {
     readonly source: string;
 }
 
+export type ManagedPluginTrust = "official" | "community";
+export type ManagedPluginAvailability = "bundled" | "unavailable";
+
+export interface ManagedPluginRecommendation {
+    readonly platform: string;
+    readonly version?: string;
+    readonly trust: ManagedPluginTrust;
+    readonly availability: ManagedPluginAvailability;
+    readonly reason?: "no-safe-source";
+}
+
 export interface IManagedPluginResult {
     status: "installed" | "upgraded" | "reconciled" | "unchanged";
     plugin: Plugin;
@@ -131,10 +142,7 @@ export interface IPluginManager {
     isManagedPlugin(platform: string): boolean;
 
     /** Return source-free metadata for MyMusic recommended providers. */
-    getManagedPluginRecommendations(): Array<{
-        readonly platform: string;
-        readonly version: string;
-    }>;
+    getManagedPluginRecommendations(): ManagedPluginRecommendation[];
 
     /** Reinstall or reconcile one trusted bundled provider by exact name. */
     repairManagedPlugin(platform: string): Promise<IInstallPluginResult>;

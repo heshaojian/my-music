@@ -30,12 +30,22 @@ export interface InstalledPluginSnapshot {
     srcUrl?: string;
 }
 
+export type ManagedPluginTrust = "official" | "community";
+export type ManagedPluginAvailability = "bundled" | "unavailable";
+
 export interface ManagedPluginRecommendation {
     readonly platform: string;
-    readonly version: string;
+    readonly version?: string;
+    readonly trust: ManagedPluginTrust;
+    readonly availability: ManagedPluginAvailability;
+    readonly reason?: "no-safe-source";
 }
 
-export type CatalogEntryStatus = "available" | "installed" | "update";
+export type CatalogEntryStatus =
+    | "available"
+    | "installed"
+    | "update"
+    | "unavailable";
 
 export interface CatalogLoadResult {
     entries: CatalogEntry[];
