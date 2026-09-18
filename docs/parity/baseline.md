@@ -68,16 +68,16 @@ The launcher respects `JAVA_HOME` plus `ANDROID_HOME`/`ANDROID_SDK_ROOT`. On mac
 
 ### Project discovery
 
-`xcodebuild -list -project ios/MusicFree.xcodeproj` succeeds and reports:
+`xcodebuild -list -project ios/MyMusic.xcodeproj` succeeds and reports:
 
-- Targets: `MusicFree`, `MusicFreeTests`
+- Targets: `MyMusic`, `MyMusicTests`
 - Configurations: `Debug`, `Release`
-- Shared scheme: `MusicFreeNew`
+- Shared scheme: `MyMusic`
 - iOS deployment target: 15.1
 - Fork bundle identifier: `com.heshaojian.FreeMusic`
 - No committed development team is present
 
-The scheme name remains a Phase 4 cleanup item. The current `Info.plist` declares background audio and the `musicfree` URL scheme; plugin/audio document declarations remain to be added.
+The current `Info.plist` declares background audio and the `musicfree` URL scheme; plugin/audio document declarations remain to be added.
 
 ### CocoaPods readiness
 
@@ -96,12 +96,12 @@ The scheme name remains a Phase 4 cleanup item. The current `Info.plist` declare
 Attempted without signing:
 
 ```sh
-xcodebuild -project ios/MusicFree.xcodeproj \
-  -scheme MusicFreeNew \
+xcodebuild -project ios/MyMusic.xcodeproj \
+  -scheme MyMusic \
   -configuration Debug \
   -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath /tmp/MusicFreeDerivedData \
+  -derivedDataPath /tmp/MyMusicDerivedData \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
@@ -109,12 +109,12 @@ xcodebuild -project ios/MusicFree.xcodeproj \
 
 ```text
 Unable to open base configuration reference file
-ios/Pods/Target Support Files/Pods-MusicFree/Pods-MusicFree.debug.xcconfig
+ios/Pods/Target Support Files/Pods-MyMusic/Pods-MyMusic.debug.xcconfig
 ```
 
 Dependent CocoaPods input/output file lists were also missing. This was a dependency-integration failure before application compilation.
 
-After Pod installation, `xcodebuild -list -workspace ios/MusicFree.xcworkspace` succeeded and exposed `MusicFreeNew` plus the dependency schemes. A Debug simulator build and launch now succeed. The application reaches its home screen and completes storage, configuration, plugin, player, playlist, lyric, local-music, theme, and language initialization without a fatal error.
+After Pod installation, `xcodebuild -list -workspace ios/MyMusic.xcworkspace` succeeded and exposed `MyMusic` plus the dependency schemes. A Debug simulator build and launch now succeed. The application reaches its home screen and completes storage, configuration, plugin, player, playlist, lyric, local-music, theme, and language initialization without a fatal error.
 
 ### Signed physical-device build and install
 

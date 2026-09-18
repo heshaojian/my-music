@@ -41,10 +41,19 @@ describe("MyMusic brand identity", () => {
         expect(project)
             .toContain("PRODUCT_BUNDLE_IDENTIFIER = com.heshaojian.FreeMusic;");
         expect(project).toContain("PRODUCT_NAME = MyMusic;");
-        expect(read("ios/MyMusic.xcodeproj/xcshareddata/xcschemes/MyMusic.xcscheme"))
-            .toContain('BuildableName = "MyMusic.app"');
+        expect(project).toContain("name = MyMusicTests;");
+        expect(project).toContain("productName = MyMusicTests;");
+        expect(project).toContain('path = MyMusicTests.xctest;');
+        const scheme = read(
+            "ios/MyMusic.xcodeproj/xcshareddata/xcschemes/MyMusic.xcscheme",
+        );
+        expect(scheme).toContain('BuildableName = "MyMusic.app"');
+        expect(scheme).toContain('BuildableName = "MyMusicTests.xctest"');
         expect(read("ios/MyMusic.xcworkspace/contents.xcworkspacedata"))
             .toContain('location = "group:MyMusic.xcodeproj"');
+        expect(`${project}\n${scheme}`).not.toMatch(
+            /MusicFreeNew|MusicFree\.xcodeproj|MusicFree\.xcworkspace/,
+        );
     });
 
     it("ships a complete opaque iOS icon set from a 1024px master", () => {
